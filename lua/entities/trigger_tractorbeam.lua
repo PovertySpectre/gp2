@@ -75,7 +75,7 @@ function ENT:ProcessEntity(ent)
 
     local toCenter = centerPos - entPos
     local sidewayForce = angles:Right() * toCenter:Dot(angles:Right()) + angles:Up() * toCenter:Dot(angles:Up())
-    local baseForce = self.LinearForce or 250
+    local baseForce = self.LinearForce or 0
     local forwardForce = angles:Forward() * baseForce
 
     local mins, maxs = ent:GetCollisionBounds()
