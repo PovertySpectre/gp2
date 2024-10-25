@@ -66,7 +66,6 @@ function ENT:StartTouch(ent)
             table.insert(self.TouchingEnts, ent)
         elseif ent:IsPlayer() then
             GP2.GameMovement.PlayerEnteredToTractorBeam(ent, self)
-            table.insert(self.TouchingEnts, ent)
         end
     end
 end
@@ -83,6 +82,8 @@ function ENT:ProcessEntity(ent)
     local sidewayForce = angles:Right() * toCenter:Dot(angles:Right()) + angles:Up() * toCenter:Dot(angles:Up())
     local baseForce = self.LinearForce or 0
     local forwardForce = angles:Forward() * baseForce
+
+    print(sidewayForce:Length())
 
     local mins, maxs = ent:GetCollisionBounds()
     local boxSize = (maxs - mins):Length()
@@ -102,16 +103,13 @@ function ENT:ProcessEntity(ent)
 
     phys:Wake()
     phys:SetVelocity(totalForce)
-    ent:SetLocalAngularVelocity(Angle(0, 0, 155))
-
-    local damping = math.abs(baseForce / 10)
-    phys:SetDamping(damping, damping)
+    phys:SetAngleVelocity(totalForce)
 end
 
 
 function ENT:EndTouch(ent)
     table.RemoveByValue(self.TouchingEnts, ent)
-    
+
     if ent:IsPlayer() then
         GP2.GameMovement.PlayerExitedFromTractorBeam(ent, self)
     end
