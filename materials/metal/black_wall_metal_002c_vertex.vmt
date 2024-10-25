@@ -18,9 +18,6 @@ $envmapcontrast 0.99
 $envmapsaturation .2
 $envmaptint .2 .2 .2
 "%noportal" 1
-$detail "detail/detail_tile"
-$detailscale 9
-$detailblendfactor 1
 
 "%keywords" "portal2 noportal chamber"
 }

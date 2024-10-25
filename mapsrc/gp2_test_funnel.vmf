@@ -2,7 +2,7 @@ versioninfo
 {
 	"editorversion" "400"
 	"editorbuild" "8868"
-	"mapversion" "60"
+	"mapversion" "62"
 	"formatversion" "100"
 	"prefab" "0"
 }
@@ -89,7 +89,7 @@ bgimages_plus
 world
 {
 	"id" "1"
-	"mapversion" "60"
+	"mapversion" "62"
 	"classname" "worldspawn"
 	"detailmaterial" "detail/detailsprites"
 	"detailvbsp" "detail.vbsp"
@@ -2319,9 +2319,10 @@ entity
 	"disableshadowdepth" "0"
 	"disableshadows" "0"
 	"drawinfastreflection" "0"
-	"linearForce" "250"
+	"linearForce" "90"
 	"noemitterparticles" "0"
 	"shadowdepthnocache" "0"
+	"skin" "0"
 	"StartEnabled" "1"
 	"targetname" "projector"
 	"use128model" "0"
@@ -2567,7 +2568,7 @@ entity
 	"targetname" "relay_tractor_reverse"
 	connections
 	{
-		"OnTrigger" "projectorSetLinearForce-2500-1"
+		"OnTrigger" "projectorSetLinearForce-900-1"
 		"OnTrigger" "relay_tractor_forwardEnable0.05-1"
 		"OnTrigger" "!selfDisable0-1"
 	}
@@ -2589,7 +2590,7 @@ entity
 	"targetname" "relay_tractor_forward"
 	connections
 	{
-		"OnTrigger" "projectorSetLinearForce2500-1"
+		"OnTrigger" "projectorSetLinearForce900-1"
 		"OnTrigger" "relay_tractor_reverseEnable0.05-1"
 		"OnTrigger" "!selfDisable0-1"
 	}

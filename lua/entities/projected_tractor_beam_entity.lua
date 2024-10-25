@@ -7,8 +7,13 @@ AddCSLuaFile()
 ENT.Type = "anim"
 
 local MAX_RAY_LENGTH = 8192
-local PROJECTED_BEAM_RADIUS = 64
+local PROJECTED_BEAM_RADIUS = 54
 local PROJECTED_BEAM_SIDES = 32
+
+local debugNormalColor = Color(64,160,255,2)
+local debugReversedColor = Color(255,160,64,2)
+
+local developer = GetConVar("developer")
 
 ENT.PhysicsSolidMask = CONTENTS_SOLID+CONTENTS_MOVEABLE+CONTENTS_BLOCKLOS
 
@@ -17,7 +22,6 @@ PrecacheParticleSystem("projected_wall_impact")
 function ENT:SetupDataTables()
     self:NetworkVar( "Bool", "Updated" )
     self:NetworkVar( "Bool", "GotInitialPosition" )
-    self:NetworkVar( "Bool", "Reversed" )
     self:NetworkVar( "Vector", "InitialPosition" )
     self:NetworkVar( "Float", "DistanceToHit" )
     self:NetworkVar( "Float", "Radius" )
@@ -73,7 +77,9 @@ end
 function ENT:OnRemove(fd)
 end
 
-function ENT:CreateBeam()
+function ENT:CreateBeam(distance)
+    distance = distance or 0
+
     local startPos = self:GetPos()
     local angles = self:GetAngles()
     local fwd = angles:Forward()
@@ -129,9 +135,54 @@ function ENT:CreateBeam()
         self.Mesh = Mesh()
         self.Mesh:BuildFromTriangles(verts)
         ProjectedTractorBeamEntity.AddToRenderList(self, self.Mesh)
+    else
+        local radius =  self:GetRadius()
+
+        if self.Trigger and IsValid(self.Trigger) then
+            local pos = self:GetPos()
+            local ang = self:GetAngles()
+
+            local fwd = angles:Forward()
+            local right = angles:Right()
+            local up = angles:Up()
+
+            local mins = pos - right * radius - up * radius
+            local maxs = pos + right * radius + up * radius + fwd * distance
+
+            self.Trigger:SetCollisionBoundsWS(mins, maxs)
+            self.Trigger:SetAngles(self:GetAngles())
+            self.Trigger.LinearForce = self:Get_LinearForce()
+
+            if developer:GetBool() then
+                debugoverlay.BoxAngles(pos, self:WorldToLocal(mins), self:WorldToLocal(maxs), ang, 0.1, self:Get_LinearForce() < 0 and debugReversedColor or debugNormalColor) 
+            end
+        else
+            self.Trigger = ents.Create("trigger_tractorbeam")
+            self.Trigger:Spawn()
+            self.Trigger:SetPos(self:GetPos())
+            self.Trigger:SetParent(self)
+            self.Trigger:SetTractorBeam(self)
+            self.Trigger.LinearForce = self:Get_LinearForce()
+
+            local pos = self:GetPos()
+            local ang = self:GetAngles()
+
+            local fwd = angles:Forward()
+            local right = angles:Right()
+            local up = angles:Up()
+
+            local mins = pos - right * radius - up * radius
+            local maxs = pos + right * radius + up * radius + fwd * distance
+           
+            self.Trigger:SetCollisionBoundsWS(mins, maxs)
+            self.Trigger:SetAngles(self:GetAngles())
+
+            if developer:GetBool() then
+                debugoverlay.BoxAngles(pos, self:WorldToLocal(mins), self:WorldToLocal(maxs), ang, 0.1, self:Get_LinearForce() < 0 and debugReversedColor or debugNormalColor) 
+            end
+        end
     end
 end
-
 
 if SERVER then
     function ENT:UpdateTransmitState()
@@ -140,5 +191,6 @@ if SERVER then
 
     function ENT:SetLinearForce(force)
         self:Set_LinearForce(force)
+        self:SetUpdated(false)
     end
 end

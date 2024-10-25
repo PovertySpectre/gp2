@@ -21,6 +21,11 @@ function ENT:KeyValue(k, v)
 end
 
 function ENT:SetupDataTables()
+    self:NetworkVar("Bool", "Enabled") -- shared var for particles
+
+    if CLIENT then
+        self:NetworkVarNotify("Enabled", self.OnEnabled)
+    end
 end
 
 function ENT:Initialize()
@@ -71,7 +76,7 @@ if SERVER then
             self.Beam:Spawn()
             self.Beam:SetPos(self:GetPos() + ang:Forward() * 8)
             self.Beam:SetParent(self)
-            self.Beam:SetRadius(self.Use128Model and 50 or 60)
+            self.Beam:SetRadius(self.Use128Model and 55 or 60)
             self.Beam:SetLinearForce(self.StartLinearForce)
             self.Beam:SetAngles(ang)
         end
@@ -85,6 +90,10 @@ if SERVER then
         self.ArmatureTarget = self.StartLinearForce < 0 and 0 or 1
         self.ArmatureDuration = 0.75
         self.ArmatureStartTime = CurTime()
+
+        timer.Simple(0, function()
+            self:SetEnabled(true)
+        end)
     end
 
     function ENT:Disable()
@@ -102,6 +111,10 @@ if SERVER then
         self.ArmatureTarget = 0.5
         self.ArmatureDuration = 1.5
         self.ArmatureStartTime = CurTime()
+
+        timer.Simple(0, function()
+            self:SetEnabled(false)
+        end)
     end
 
     function ENT:SetLinearForce(force)
@@ -135,10 +148,6 @@ function ENT:Think()
     
     self:NextThink(CurTime())
     return true
-end
-
-function ENT:OnEnabled(name, old, new)
-    self.EnabledTime = CurTime()
 end
 
 function ENT:CalculateRotationPose()
@@ -207,5 +216,28 @@ function ENT:CalculateArmaturePose()
         return 1.0
     else
         return armatureGoal
+    end
+end
+
+if CLIENT then
+    function ENT:OnEnabled(name, old, new)
+        -- print('OnEnabled ' .. (new and 'ENABLED' or "DISABLED"))
+
+        -- if new then
+        --     self.EmitterParticles = {}
+
+        --     for i = 1, 3 do 
+        --         self.EmitterParticles[i] = CreateParticleSystem(self, "discouragement_beam_burn", PATTACH_POINT_FOLLOW, self:LookupAttachment("emitter" .. i)) 
+        --         self.EmitterParticles[i]:SetControlPoint(1, Vector(255,255,255))
+        --     end
+        -- else
+        --     for i = 1, 3 do
+        --         local particle = self.EmitterParticles[i] 
+
+        --         if IsValid(particle) then
+        --             particle:StopEmission()
+        --         end
+        --     end
+        -- end
     end
 end

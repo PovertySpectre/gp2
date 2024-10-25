@@ -185,6 +185,9 @@ function ProjectedTractorBeamEntity.Render()
 
             local rate = entity:Get_LinearForce() / 1000
 
+            -- for now i'll do rate same for every tractor beam
+            rate = entity:Get_LinearForce() < 0 and -0.25 or 0.25
+
             if entity:Get_LinearForce() < 0 then
                 render.SetMaterial(PROJECTED_BEAM_MATERIAL_INVERSE)
             else
@@ -303,11 +306,18 @@ function NpcPortalTurretFloor.Render()
     end
 end
 
-
 hook.Add("PreDrawTranslucentRenderables", "GP2::PreDrawTranslucentRenderables", function(depth, sky, skybox3d)
+    if depth or sky then return end
+
     PropIndicatorPanel.Render()
     VguiMovieDisplay.Render()
     VguiSPProgressSign.Render()
+end)
+
+
+hook.Add("PostDrawTranslucentRenderables", "GP2::PostDrawTranslucentRenderables", function(depth, sky, skybox3d)
+    if depth or sky then return end
+
     EnvPortalLaser.Render()
     ProjectedWallEntity.Render()
     ProjectedTractorBeamEntity.Render()
