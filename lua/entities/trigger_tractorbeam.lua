@@ -83,8 +83,6 @@ function ENT:ProcessEntity(ent)
     local baseForce = self.LinearForce or 0
     local forwardForce = angles:Forward() * baseForce
 
-    print(sidewayForce:Length())
-
     local mins, maxs = ent:GetCollisionBounds()
     local boxSize = (maxs - mins):Length()
 

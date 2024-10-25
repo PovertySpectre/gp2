@@ -20,7 +20,7 @@ local function TractorBeamMovement(ply, mv)
     if IsValid(beam) then
         ply:SetGroundEntity(NULL)
 
-        local plyPos = ply:GetPos()
+        local plyPos = ply:WorldSpaceCenter()
         local plyAng = ply:GetAngles()
         local centerPos = beam:WorldSpaceCenter()
         local angles = beam:GetAngles()
@@ -31,16 +31,22 @@ local function TractorBeamMovement(ply, mv)
         local forwardForce = angles:Forward() * baseForce
 
         local totalForce = forwardForce + sidewayForce
+        local moveDirection = Vector()
 
         if bit.band(mv:GetButtons(), IN_FORWARD) ~= 0 then
-            totalForce = totalForce + plyAng:Forward() * ply:GetWalkSpeed()
+            moveDirection = plyAng:Forward()
         elseif bit.band(mv:GetButtons(), IN_BACK) ~= 0 then
-            totalForce = totalForce - plyAng:Forward() * ply:GetWalkSpeed()
+            moveDirection = -plyAng:Forward()
         elseif bit.band(mv:GetButtons(), IN_MOVELEFT) ~= 0 then
-            totalForce = totalForce - plyAng:Right() * ply:GetWalkSpeed()
+            moveDirection = -plyAng:Right()
         elseif bit.band(mv:GetButtons(), IN_MOVERIGHT) ~= 0 then
-            totalForce = totalForce + plyAng:Right() * ply:GetWalkSpeed()
+            moveDirection = plyAng:Right()
         end
+
+        local dot = angles:Forward():Dot(moveDirection)
+        dot = 1 - math.abs(dot)
+
+        totalForce = totalForce + (moveDirection * ply:GetWalkSpeed()) * dot
 
         mv:SetVelocity(totalForce)
     end
