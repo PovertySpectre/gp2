@@ -9,7 +9,7 @@ ENT.TouchingEnts = {}
 ENT.TractorBeam = NULL
 
 local TRACTOR_BEAM_VALID_ENTS = {
-    --["player"] = true,
+    --["player"] = true, -- player movement handled by Move hook
     ["prop_physics"] = true,
     ["func_physbox"] = true,
     ["prop_monster_box"] = true,
@@ -46,12 +46,13 @@ function ENT:Think()
 
         if not IsValid(ent) then
             table.remove(self.TouchingEnts, i)
+
+            if ent:IsPlayer() then
+                GP2.GameMovement.PlayerExitedFromTractorBeam(ent, self)
+            end
+        else
+            self:ProcessEntity(ent) 
         end
-
-        self:ProcessEntity(ent)
-    end
-
-    if #self.TouchingEnts == 0 and self.IsPressed and IsValid(self.Button) then
     end
 
     self:NextThink(CurTime())
@@ -59,8 +60,14 @@ function ENT:Think()
 end
 
 function ENT:StartTouch(ent)
-    if IsValid(self.TractorBeam) and (TRACTOR_BEAM_VALID_ENTS[ent:GetClass()]) then
-        table.insert(self.TouchingEnts, ent)
+    if IsValid(self.TractorBeam) then
+        
+        if (TRACTOR_BEAM_VALID_ENTS[ent:GetClass()]) then
+            table.insert(self.TouchingEnts, ent)
+        elseif ent:IsPlayer() then
+            GP2.GameMovement.PlayerEnteredToTractorBeam(ent, self)
+            table.insert(self.TouchingEnts, ent)
+        end
     end
 end
 
@@ -104,4 +111,8 @@ end
 
 function ENT:EndTouch(ent)
     table.RemoveByValue(self.TouchingEnts, ent)
+    
+    if ent:IsPlayer() then
+        GP2.GameMovement.PlayerExitedFromTractorBeam(ent, self)
+    end
 end

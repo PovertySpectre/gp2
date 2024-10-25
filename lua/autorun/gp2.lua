@@ -13,7 +13,7 @@ GP2_PROJECT_COLOR_THEME_ERROR = Color(255,90,90)
 GP2_PROJECT_COLOR_THEME_ERROR_LIGHT = Color(255,155,155)
 GP2_PROJECT_NAME = '[GP2] '
 
-GP2 = {
+GP2 = GP2 or {
     Print = function(msg, ...)
         MsgC(GP2_PROJECT_COLOR_THEME, GP2_PROJECT_NAME)
         MsgC(GP2_PROJECT_COLOR_THEME_LIGHT, fmt(msg, ...))
@@ -90,6 +90,7 @@ if SERVER then
     include("gp2/paint.lua")
     include("gp2/vgui.lua")
     include("gp2/mouthmanager.lua")
+    include("gp2/gamemovement.lua")
 
     hook.Add("Initialize", "GP2::Initialize", function()
         SoundManager.Initialize()
