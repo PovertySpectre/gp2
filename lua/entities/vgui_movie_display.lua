@@ -36,16 +36,18 @@ end
 function ENT:Initialize()
 end
 
+function ENT:Think()
+if CLIENT then
+    if not VguiMovieDisplay.IsAddedDisplay(self) then
+        VguiMovieDisplay.AddDisplay(self)
+    end
+end
+end
+
 function ENT:OnActiveChanged(name, old, new)
 end
 
 function ENT:UpdateTransmitState()
-    if self:GetActive() then
-        net.Start(GP2.Net.SendMovieDisplay)
-            net.WriteEntity(self)
-        net.Broadcast()
-    end
-
     return TRANSMIT_ALWAYS
 end
 

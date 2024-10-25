@@ -119,6 +119,10 @@ function VguiMovieDisplay.AddDisplay(display)
     VguiMovieDisplay.Movies[display] = true
 end
 
+function VguiMovieDisplay.IsAddedDisplay(display)
+    return VguiMovieDisplay.Movies[display] ~= nil
+end
+
 function VguiMovieDisplay.CaptureVideos()
     -- Render target per group
     for group, data in pairs(VguiMovieDisplay.MovieGroups) do
@@ -349,6 +353,10 @@ function VguiSPProgressSign.AddSign(sign)
     if sign:GetClass() ~= "vgui_sp_progress_sign" then return end
 
     VguiSPProgressSign.Signs[sign] = true
+end
+
+function VguiSPProgressSign.IsAddedSign(sign)
+    return VguiSPProgressSign.Signs[sign] ~= nil
 end
 
 function VguiSPProgressSign.Render()

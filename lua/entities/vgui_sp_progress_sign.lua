@@ -72,11 +72,15 @@ function ENT:SetupDataTables()
     end
 end
 
-function ENT:UpdateTransmitState()
-    net.Start(GP2.Net.SendProgressSignDisplay)
-        net.WriteEntity(self)
-    net.Broadcast()
+function ENT:Think()
+    if CLIENT then
+        if not VguiSPProgressSign.IsAddedSign(self) then
+            VguiSPProgressSign.AddSign(self)
+        end
+    end
+end
 
+function ENT:UpdateTransmitState()
     return TRANSMIT_ALWAYS
 end
 
