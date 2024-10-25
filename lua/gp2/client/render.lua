@@ -9,6 +9,9 @@ EnvPortalLaser.Lasers = EnvPortalLaser.Lasers or {}
 ProjectedWallEntity = ProjectedWallEntity or {}
 ProjectedWallEntity.Walls = ProjectedWallEntity.Walls or {}
 
+ProjectedTractorBeamEntity = ProjectedTractorBeamEntity or {}
+ProjectedTractorBeamEntity.Beams = ProjectedTractorBeamEntity.Beams or {}
+
 NpcPortalTurretFloor = NpcPortalTurretFloor or {}
 NpcPortalTurretFloor.Turrets = NpcPortalTurretFloor.Turrets or {}
 
@@ -24,6 +27,18 @@ local TURRET_BEAM_MATERIAL = Material("effects/redlaser1_scripted.vmt")
 local TURRET_EYE_GLOW = Material("sprites/glow1_scripted.vmt")
 
 local PROJECTED_WALL_MATERIAL = Material("effects/projected_wall")
+
+local PROJECTED_BEAM_MATERIAL = Material("effects/tractor_beam_blue")
+local PROJECTED_BEAM_MATERIAL_INVERSE = Material("effects/tractor_beam_orange")
+
+local PROJECTED_BEAM_MATERIAL_CORE_BLUE = PROJECTED_BEAM_MATERIAL:GetTexture("$basetexture")
+local PROJECTED_BEAM_MATERIAL_CORE1_BLUE = PROJECTED_BEAM_MATERIAL:GetTexture("$detail2")
+local PROJECTED_BEAM_MATERIAL_CORE2_BLUE = PROJECTED_BEAM_MATERIAL:GetTexture("$detail1")
+
+local PROJECTED_BEAM_MATERIAL_CORE_ORANGE = PROJECTED_BEAM_MATERIAL_INVERSE:GetTexture("$basetexture")
+local PROJECTED_BEAM_MATERIAL_CORE1_ORANGE = PROJECTED_BEAM_MATERIAL_INVERSE:GetTexture("$detail2")
+local PROJECTED_BEAM_MATERIAL_CORE2_ORANGE = PROJECTED_BEAM_MATERIAL_INVERSE:GetTexture("$detail1")
+
 local END_POINT_PULSE_SCALE = 16
 
 local HALF_VECTOR = Vector(0.5,0.5,0.5)
@@ -36,14 +51,6 @@ TURRET_BEAM_MATERIAL:SetVector("$color", HALF2_VECTOR)
 
 function EnvPortalLaser.AddToRenderList(laser)
     EnvPortalLaser.Lasers[laser] = true
-end
-
-function ProjectedWallEntity.AddToRenderList(ent, wall)
-    ProjectedWallEntity.Walls[ent] = wall
-end
-
-function ProjectedWallEntity.IsAdded(ent)
-    return ProjectedWallEntity.Walls[ent] ~= nil and ProjectedWallEntity.Walls[ent]:IsValid()
 end
 
 function EnvPortalLaser.Render()
@@ -107,6 +114,14 @@ function EnvPortalLaser.Render()
     end
 end
 
+function ProjectedWallEntity.AddToRenderList(ent, wall)
+    ProjectedWallEntity.Walls[ent] = wall
+end
+
+function ProjectedWallEntity.IsAdded(ent)
+    return ProjectedWallEntity.Walls[ent] ~= nil and ProjectedWallEntity.Walls[ent]:IsValid()
+end
+
 function ProjectedWallEntity.Render()
     for entity, wall in pairs(ProjectedWallEntity.Walls) do
         if not IsValid(entity) then
@@ -135,6 +150,50 @@ function ProjectedWallEntity.Render()
                     end
                 end
             end
+        end
+    end
+end
+
+function ProjectedTractorBeamEntity.AddToRenderList(ent, wall)
+    ProjectedTractorBeamEntity.Beams[ent] = wall
+end
+
+function ProjectedTractorBeamEntity.IsAdded(ent)
+    return ProjectedTractorBeamEntity.Beams[ent] ~= nil and ProjectedTractorBeamEntity.Beams[ent]:IsValid()
+end
+
+function ProjectedTractorBeamEntity.Render()
+    for entity, beam in pairs(ProjectedTractorBeamEntity.Beams) do
+        if not IsValid(entity) then
+            ProjectedTractorBeamEntity.Beams[entity] = nil
+            return
+        end
+
+        if beam and beam:IsValid() then
+            local basetexturetransform = PROJECTED_BEAM_MATERIAL:GetMatrix("$basetexturetransform")
+
+            entity.baseTransformPosition = entity.baseTransformPosition or 0
+
+            basetexturetransform:SetField(1, 4, entity.baseTransformPosition)
+            PROJECTED_BEAM_MATERIAL:SetMatrix("$basetexturetransform", basetexturetransform)
+            PROJECTED_BEAM_MATERIAL:SetMatrix("$detail1texturetransform", basetexturetransform)
+            PROJECTED_BEAM_MATERIAL:SetMatrix("$detail2texturetransform", basetexturetransform)
+            
+            PROJECTED_BEAM_MATERIAL_INVERSE:SetMatrix("$basetexturetransform", basetexturetransform)
+            PROJECTED_BEAM_MATERIAL_INVERSE:SetMatrix("$detail1texturetransform", basetexturetransform)
+            PROJECTED_BEAM_MATERIAL_INVERSE:SetMatrix("$detail2texturetransform", basetexturetransform)
+
+            local rate = entity:Get_LinearForce() / 1000
+
+            if entity:Get_LinearForce() < 0 then
+                render.SetMaterial(PROJECTED_BEAM_MATERIAL_INVERSE)
+            else
+                render.SetMaterial(PROJECTED_BEAM_MATERIAL)
+            end
+
+            entity.baseTransformPosition = (entity.baseTransformPosition + rate * FrameTime()) % 1
+            
+            beam:Draw()
         end
     end
 end
@@ -171,7 +230,7 @@ function NpcPortalTurretFloor.Render()
         local tr = util.TraceLine({
             start = start,
             endpos = start + turret.LaserAngles:Forward() * MAX_RAY_LENGTH,
-            filter = {turret},
+            filter = turret,
             mask = MASK_SOLID,
         })
 
@@ -251,5 +310,6 @@ hook.Add("PreDrawTranslucentRenderables", "GP2::PreDrawTranslucentRenderables", 
     VguiSPProgressSign.Render()
     EnvPortalLaser.Render()
     ProjectedWallEntity.Render()
+    ProjectedTractorBeamEntity.Render()
     NpcPortalTurretFloor.Render()
 end)

@@ -1,3 +1,8 @@
+-- ----------------------------------------------------------------------------
+-- GP2 Framework
+-- Lighted mouth material proxy
+-- ----------------------------------------------------------------------------
+
 local PotatosEnabled = "GP2::PotatosEnabled"
 local PotatosMouthName = "GP2::GladosActorMouth"
 local SphereMouthName = "GP2::SphereMouth"

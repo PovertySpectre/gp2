@@ -26,10 +26,12 @@ GP2 = {
     end,
 }
 
+include("gp2/utils.lua")
 include("gp2/netmessages.lua")
 include("gp2/soundmanager.lua")
 include("gp2/particles.lua")
 include("gp2/entityextensions.lua")
+AddCSLuaFile("gp2/utils.lua")
 AddCSLuaFile("gp2/netmessages.lua")
 AddCSLuaFile("gp2/soundmanager.lua")
 AddCSLuaFile("gp2/particles.lua")

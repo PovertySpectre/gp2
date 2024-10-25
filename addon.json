@@ -4,6 +4,7 @@
 	"tags"		:	[ "fun" ],
 	"ignore"	:
 	[
+		"materialsrc/*",
 		"modelsrc/*",
 		"mapsrc/*",
 		"resource/fonts/LICENSE.txt",
