@@ -61,7 +61,6 @@ end
 function ENT:StartTouch(ent)
     if IsValid(self.TractorBeam) and (TRACTOR_BEAM_VALID_ENTS[ent:GetClass()]) then
         table.insert(self.TouchingEnts, ent)
-        print('FUCK')
     end
 end
 
