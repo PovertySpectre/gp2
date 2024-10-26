@@ -34,7 +34,7 @@ local function TractorBeamMovement(ply, mv)
         local moveDirection = Vector()
 
         if bit.band(mv:GetButtons(), IN_FORWARD) ~= 0 then
-            moveDirection = plyAng:Forward()
+            moveDirection = mv:GetMoveAngles():Forward()
         elseif bit.band(mv:GetButtons(), IN_BACK) ~= 0 then
             moveDirection = -plyAng:Forward()
         elseif bit.band(mv:GetButtons(), IN_MOVELEFT) ~= 0 then
