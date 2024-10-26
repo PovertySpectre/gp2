@@ -35,7 +35,13 @@ if SERVER then
         self.ButtonTrigger:SetPos(self:GetPos())
         self.ButtonTrigger:SetParent(self)
         self.ButtonTrigger:SetButton(self)
-        self.ButtonTrigger:SetCollisionBounds(TRIGGER_MINS, TRIGGER_MAXS)
+
+        local pos = self:GetPos()
+        local angles = self:GetAngles()
+        local mins = pos - (angles:Forward() * TRIGGER_MINS.x) - (angles:Right() * TRIGGER_MINS.y)
+        local maxs = pos + (angles:Forward() * TRIGGER_MAXS.x) + (angles:Right() * TRIGGER_MAXS.y) + (angles:Up() * TRIGGER_MAXS.z)
+        
+        self.ButtonTrigger:SetCollisionBounds(self:WorldToLocal(mins), self:WorldToLocal(maxs))
     end
     
     function ENT:KeyValue(k, v)
@@ -90,7 +96,8 @@ if SERVER then
         self:UpdateBoneFollowers()
 
         if developer:GetBool() then
-            debugoverlay.Box(self:GetPos(), TRIGGER_MINS, TRIGGER_MAXS, 0.1, self.Pressed and DEBUG_PRESSED_COLOR or DEBUG_UNPRESSED_COLOR)
+            local mins, maxs = self.ButtonTrigger:GetCollisionBounds()
+            debugoverlay.Box(self:GetPos(), mins, maxs, 0.1, self.Pressed and DEBUG_PRESSED_COLOR or DEBUG_UNPRESSED_COLOR)
         end
 
         self:NextThink(CurTime())
