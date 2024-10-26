@@ -19,6 +19,10 @@ local TRACTOR_BEAM_VALID_ENTS = {
     ["prop_ragdoll"] = true,
     ["prop_exploding_futbol"] = true,
     ["npc_grenade_frag"] = true,
+    ["npc_manhack"] = true,
+    ["npc_cscanner"] = true,
+    ["npc_clawscanner"] = true,
+    ["npc_rollermine"] = true,
 }
 
 function ENT:Initialize()
@@ -97,7 +101,7 @@ function ENT:ProcessEntity(ent)
 
     local totalForce
 
-    if not (ent:IsNPC() or ent:IsNextBot()) and IsValid(phys) then
+    if TRACTOR_BEAM_VALID_ENTS[ent:GetClass()] and IsValid(phys) then
         local normalizedForwardForce = forwardForce:GetNormalized()
 
         local mins, maxs = ent:GetCollisionBounds()
@@ -120,7 +124,6 @@ function ENT:ProcessEntity(ent)
     else
         totalForce = forwardForce + sidewayForce
         ent:SetLocalVelocity(totalForce)
-        print('Setting velocity ')
     end
 
     ent:SetGroundEntity(NULL)
