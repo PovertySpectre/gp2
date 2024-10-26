@@ -43,13 +43,14 @@ end
 function ENT:Think()
     if not self:GetUpdated() then
         self:CreateBeam()
+        self:SetUpdated(true)
     end
     
 if CLIENT then
     self:SetNextClientThink(CurTime())
 
     if not ProjectedTractorBeamEntity.IsAdded(self) then
-        self:CreateBeam()
+        ProjectedTractorBeamEntity.AddToRenderList(self)
     end
 end
     local startPos = self:GetPos()
@@ -62,9 +63,12 @@ end
         mask = MASK_SOLID_BRUSHONLY,
     })
 
+
     if self.TraceFraction != tr.Fraction then
+        print(tr.Fraction)
         self:SetUpdated(false)
         self.TraceFraction = tr.Fraction
+        debugoverlay.Cross(tr.HitPos, 16, 0.1, nil, true)
     end
 
     self:NextThink(CurTime())
@@ -91,6 +95,10 @@ function ENT:CreateBeam(distance)
         endpos = startPos + fwd * MAX_RAY_LENGTH,
         mask = MASK_SOLID_BRUSHONLY,
     })
+
+    if CLIENT then
+        self.HitData = { HitPos = tr.HitPos, Angles = self:GetAngles(), Radius = self:GetRadius(), Sides = PROJECTED_BEAM_SIDES }
+    end
 
     local hitPos = tr.HitPos
     local distance = hitPos:Distance(startPos)

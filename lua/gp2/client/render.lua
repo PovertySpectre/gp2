@@ -34,8 +34,11 @@ local PROJECTED_WALL_MATERIAL = Material("effects/projected_wall")
 local PROJECTED_BEAM_MATERIAL = Material("effects/tractor_beam_blue")
 local PROJECTED_BEAM_MATERIAL_INVERSE = Material("effects/tractor_beam_orange")
 
-local PROJECTED_BEAM_COLOR_NORMAL = Color(40,90,255)
+local PROJECTED_BEAM_COLOR_NORMAL = Color(12,28,80)
 local PROJECTED_BEAM_COLOR_INVERTED = Color(255,60,0)
+
+local PROJECTED_BEAM_COLOR_NORMAL_END = Color(0,64,128)
+local PROJECTED_BEAM_COLOR_INVERTED_END = Color(128,64,0)
 
 local PROJECTED_BEAM_MATERIAL_CORE_BLUE = PROJECTED_BEAM_MATERIAL:GetTexture("$basetexture")
 local PROJECTED_BEAM_MATERIAL_CORE1_BLUE = PROJECTED_BEAM_MATERIAL:GetTexture("$detail2")
@@ -45,7 +48,8 @@ local PROJECTED_BEAM_MATERIAL_CORE_ORANGE = PROJECTED_BEAM_MATERIAL_INVERSE:GetT
 local PROJECTED_BEAM_MATERIAL_CORE1_ORANGE = PROJECTED_BEAM_MATERIAL_INVERSE:GetTexture("$detail2")
 local PROJECTED_BEAM_MATERIAL_CORE2_ORANGE = PROJECTED_BEAM_MATERIAL_INVERSE:GetTexture("$detail1")
 
-local PROP_TRACTOR_BEAM = Material("sprites/beam_laser_soft_01")
+local PROP_TRACTOR_BEAM_END = Material("sprites/beam_smoke_01")
+local PROP_TRACTOR_BEAM = Material("sprites/beam_generic_2")
 local PROP_TRACTOR_GLOW = Material("particle/particle_glow_05")
 
 local END_POINT_PULSE_SCALE = 16
@@ -206,6 +210,36 @@ function ProjectedTractorBeamEntity.Render()
             entity.baseTransformPosition = (entity.baseTransformPosition + rate * FrameTime()) % 1
             
             beam:Draw()
+
+            local hitData = entity.HitData
+            
+            if hitData then
+                local hitPos = hitData.HitPos
+                local angles = hitData.Angles
+                local radius = hitData.Radius
+                local sides = hitData.Sides
+            
+                local up = angles:Up()
+                local right = angles:Right()
+                local forward = angles:Forward()
+
+                hitPos = hitPos - forward * 1
+
+                render.SetMaterial(PROP_TRACTOR_BEAM_END)
+            
+                render.StartBeam(sides + 1)
+            
+                for i = 0, sides do
+                    local angle = (i / sides) * math.pi * 2
+                    local offset = right * math.cos(angle) * radius + up * math.sin(angle) * radius
+                    local point = hitPos + offset
+                    render.AddBeam(point, 6, i / sides, entity:Get_LinearForce() < 0 and PROJECTED_BEAM_COLOR_INVERTED_END or PROJECTED_BEAM_COLOR_NORMAL_END)
+                end
+            
+                render.AddBeam(hitPos + right * radius, 1, 1, Color(255, 255, 255))
+            
+                render.EndBeam()
+            end
         end
     end
 end

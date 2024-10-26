@@ -41,7 +41,6 @@ if SERVER then
         local mins = pos  - (angles:Forward() * 20) - (angles:Right() * 20)
         local maxs = pos + (angles:Forward() * 20) + (angles:Right() * 20) + (angles:Up() * 18)
 
-        
         self.ButtonTrigger:SetCollisionBounds(self:WorldToLocal(mins), self:WorldToLocal(maxs))
     end
     
