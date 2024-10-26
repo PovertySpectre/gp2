@@ -40,6 +40,8 @@ function ENT:Initialize()
         self.ArmatureDuration = 0.75
         self.ArmatureStartTime = CurTime()
 
+        self.StartLinearForce = self.StartLinearForce or 0
+
         if self.Use128Model then
             self:SetModel("models/props_ingame/tractor_beam_128.mdl")
         else
@@ -50,9 +52,11 @@ function ENT:Initialize()
         self:ResetSequence("tractor_beam_rotation")
         self:AddEffects(EF_NOSHADOW)
 
-        if self.StartEnabled then
-            self:Enable()
-        end
+        timer.Simple(0, function()
+            if self.StartEnabled then
+                self:Enable()
+            end
+        end)
     end
 end
 
@@ -70,6 +74,8 @@ end
 
 if SERVER then
     function ENT:Enable()
+        if self:GetEnabled() then return end
+
         if not (self.Beam and IsValid(self.Beam)) then
             self.Beam = ents.Create("projected_tractor_beam_entity")
             local ang = self:GetAngles()
@@ -91,12 +97,22 @@ if SERVER then
         self.ArmatureDuration = 0.75
         self.ArmatureStartTime = CurTime()
 
-        timer.Simple(0, function()
-            self:SetEnabled(true)
-        end)
+        self:SetEnabled(true)
+
+        if self.sndBeam then
+            self.sndBeam:Stop()
+        end
+
+        self.sndBeam = CreateSound(self, self.StartLinearForce < 0 and "VFX.TBeamNegPolarity" or "VFX.TBeamPosPolarity")
+        self.sndBeam:Play()
+
+        self.sndSpinLp = CreateSound(self, "VFX.TbeamEmitterSpinLp")
+        self.sndSpinLp:Play()
     end
 
     function ENT:Disable()
+        if not self:GetEnabled() then return end
+
         if self.Beam and IsValid(self.Beam) then
             self.Beam:Remove()
             self.Beam = nil
@@ -112,12 +128,22 @@ if SERVER then
         self.ArmatureDuration = 1.5
         self.ArmatureStartTime = CurTime()
 
-        timer.Simple(0, function()
-            self:SetEnabled(false)
-        end)
+        if self.sndBeam then
+            self.sndBeam:Stop()
+        end
+
+        if self.sndSpinLp then
+            self.sndSpinLp:FadeOut(self.RotationDuration)
+        end
+
+        self:SetEnabled(false)
     end
 
     function ENT:SetLinearForce(force)
+        if self.StartLinearForce == force then
+            return
+        end
+
         force = force or 250
         
         if self.Beam and IsValid(self.Beam) then
@@ -135,6 +161,13 @@ if SERVER then
             self.ArmatureDuration = 0.75
             self.ArmatureStartTime = CurTime()
         end
+
+        if self.sndBeam then
+            self.sndBeam:Stop()
+        end
+
+        self.sndBeam = CreateSound(self, self.StartLinearForce < 0 and "VFX.TBeamNegPolarity" or "VFX.TBeamPosPolarity")
+        self.sndBeam:Play()
 
         self.StartLinearForce = force
     end
@@ -217,6 +250,16 @@ function ENT:CalculateArmaturePose()
     else
         return armatureGoal
     end
+end
+
+function ENT:OnRemove()
+	timer.Simple( 0, function()
+		if not IsValid( self ) then
+			if IsValid(self.sndBeam) then
+                self.sndBeam:Stop()
+            end
+		end
+	end)
 end
 
 if CLIENT then
