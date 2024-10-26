@@ -83,12 +83,14 @@ function ENT:ProcessEntity(ent)
     local baseForce = self.LinearForce or 0
     local forwardForce = angles:Forward() * baseForce
 
+    local normalizedForwardForce = forwardForce:GetNormalized()
+
     local mins, maxs = ent:GetCollisionBounds()
     local boxSize = (maxs - mins):Length()
 
-    local trMovementFrontFace = entPos + angles:Forward() * (boxSize / 2)
+    local trMovementFrontFace = entPos + normalizedForwardForce * (boxSize / 2)
 
-    local tr = util.QuickTrace(trMovementFrontFace, angles:Forward() * boxSize, {self, ent})
+    local tr = util.QuickTrace(trMovementFrontFace, normalizedForwardForce * boxSize, {self, ent})
 
     local totalForce
 
