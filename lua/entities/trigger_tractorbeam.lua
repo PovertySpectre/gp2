@@ -81,7 +81,7 @@ function ENT:StartTouch(ent)
 
             self.sndPlayerInBeam = CreateSound(ent, "VFX.PlayerEnterTbeam", filter)
             self.sndPlayerInBeam:Play()
-        elseif ent:IsNPC() or ent:IsNextBot() then
+        elseif ent:IsNPC() or ent:IsNextBot() or ent:IsVehicle() then
             table.insert(self.TouchingEnts, ent)
         end
     end
@@ -101,7 +101,7 @@ function ENT:ProcessEntity(ent)
 
     local totalForce
 
-    if TRACTOR_BEAM_VALID_ENTS[ent:GetClass()] and IsValid(phys) then
+    if (TRACTOR_BEAM_VALID_ENTS[ent:GetClass()] or ent:IsVehicle()) and IsValid(phys) then
         local normalizedForwardForce = forwardForce:GetNormalized()
 
         local mins, maxs = ent:GetCollisionBounds()
