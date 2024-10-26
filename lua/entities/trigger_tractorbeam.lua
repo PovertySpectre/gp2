@@ -66,6 +66,17 @@ function ENT:StartTouch(ent)
             table.insert(self.TouchingEnts, ent)
         elseif ent:IsPlayer() then
             GP2.GameMovement.PlayerEnteredToTractorBeam(ent, self)
+
+            if self.sndPlayerInBeam then
+                self.sndPlayerInBeam:Stop()
+                ent:StopSound("")
+            end
+            
+            local filter = RecipientFilter(true)
+            filter:AddPlayer(ent)
+
+            self.sndPlayerInBeam = CreateSound(ent, "VFX.PlayerEnterTbeam", filter)
+            self.sndPlayerInBeam:Play()
         end
     end
 end
@@ -80,7 +91,7 @@ function ENT:ProcessEntity(ent)
 
     local toCenter = centerPos - entPos
     local sidewayForce = angles:Right() * toCenter:Dot(angles:Right()) + angles:Up() * toCenter:Dot(angles:Up())
-    local baseForce = self.LinearForce or 0
+    local baseForce = (self.LinearForce or 0) * 0.5
     local forwardForce = angles:Forward() * baseForce
 
     local normalizedForwardForce = forwardForce:GetNormalized()
@@ -112,5 +123,13 @@ function ENT:EndTouch(ent)
 
     if ent:IsPlayer() then
         GP2.GameMovement.PlayerExitedFromTractorBeam(ent, self)
+
+        if self.sndPlayerInBeam then
+            self.sndPlayerInBeam:FadeOut(5)
+        end
     end
+end
+
+function ENT:OnRemove()
+    self.sndPlayerInBeam:Stop()
 end
