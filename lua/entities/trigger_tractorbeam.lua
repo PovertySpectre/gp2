@@ -69,7 +69,6 @@ function ENT:StartTouch(ent)
 
             if self.sndPlayerInBeam then
                 self.sndPlayerInBeam:Stop()
-                ent:StopSound("")
             end
             
             local filter = RecipientFilter(true)
@@ -77,13 +76,14 @@ function ENT:StartTouch(ent)
 
             self.sndPlayerInBeam = CreateSound(ent, "VFX.PlayerEnterTbeam", filter)
             self.sndPlayerInBeam:Play()
+        elseif ent:IsNPC() or ent:IsNextBot() then
+            table.insert(self.TouchingEnts, ent)
         end
     end
 end
 
 function ENT:ProcessEntity(ent)
     local phys = ent:GetPhysicsObject()
-    if not IsValid(phys) then return end
 
     local entPos = ent:WorldSpaceCenter()
     local centerPos = self:WorldSpaceCenter()
@@ -94,27 +94,35 @@ function ENT:ProcessEntity(ent)
     local baseForce = (self.LinearForce or 0) * 0.5
     local forwardForce = angles:Forward() * baseForce
 
-    local normalizedForwardForce = forwardForce:GetNormalized()
-
-    local mins, maxs = ent:GetCollisionBounds()
-    local boxSize = (maxs - mins):Length()
-
-    local trMovementFrontFace = entPos + normalizedForwardForce * (boxSize / 2)
-
-    local tr = util.QuickTrace(trMovementFrontFace, normalizedForwardForce * boxSize, {self, ent})
-
     local totalForce
 
-    if tr.Fraction < 0.1 then 
-        totalForce = sidewayForce
+    if not (ent:IsNPC() or ent:IsNextBot()) and IsValid(phys) then
+        local normalizedForwardForce = forwardForce:GetNormalized()
+
+        local mins, maxs = ent:GetCollisionBounds()
+        local boxSize = (maxs - mins):Length()
+    
+        local trMovementFrontFace = entPos + normalizedForwardForce * (boxSize / 2)
+
+        local tr = util.QuickTrace(trMovementFrontFace, normalizedForwardForce * boxSize, {self, ent})
+
+        if tr.Fraction < 0.1 then 
+            totalForce = sidewayForce
+        else
+            totalForce = (forwardForce + sidewayForce) * tr.Fraction
+            phys:AddAngleVelocity((forwardForce + sidewayForce) * tr.Fraction / phys:GetMass())
+        end    
+
+        phys:Wake()
+        phys:SetVelocity(totalForce)
+        phys:SetAngleVelocity(totalForce)
     else
-        totalForce = (forwardForce + sidewayForce) * tr.Fraction
-        phys:AddAngleVelocity((forwardForce + sidewayForce) * tr.Fraction / phys:GetMass())
+        totalForce = forwardForce + sidewayForce
+        ent:SetLocalVelocity(totalForce)
+        print('Setting velocity ')
     end
 
-    phys:Wake()
-    phys:SetVelocity(totalForce)
-    phys:SetAngleVelocity(totalForce)
+    ent:SetGroundEntity(NULL)
 end
 
 
@@ -131,5 +139,7 @@ function ENT:EndTouch(ent)
 end
 
 function ENT:OnRemove()
-    self.sndPlayerInBeam:Stop()
+    if self.sndPlayerInBeam then
+        self.sndPlayerInBeam:Stop()
+    end
 end
