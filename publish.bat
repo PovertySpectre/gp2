@@ -29,3 +29,5 @@ python publish.py
 echo Publish completed!
 
 endlocal
+
+pause

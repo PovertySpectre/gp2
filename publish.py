@@ -79,6 +79,7 @@ with open("lua/gp2/version.lua", 'w') as f:
 
 # Publish to Workshop and send webhook to server
 if not execute_fastgmad_update(get_latest_git_commit()):
-    send_discord_webhook("Failed to publish to workshop")
+    #send_discord_webhook("Failed to publish to workshop")
+    print("Failed to publish to workshop")
 else:
     send_discord_webhook("Published update to workshop")
