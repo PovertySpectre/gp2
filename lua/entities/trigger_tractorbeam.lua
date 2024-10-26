@@ -18,6 +18,7 @@ local TRACTOR_BEAM_VALID_ENTS = {
     ["npc_portal_turret_floor"] = true,
     ["prop_ragdoll"] = true,
     ["prop_exploding_futbol"] = true,
+    ["npc_grenade_frag"] = true,
 }
 
 function ENT:Initialize()
