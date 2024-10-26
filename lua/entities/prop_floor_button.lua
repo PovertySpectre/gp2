@@ -38,8 +38,9 @@ if SERVER then
 
         local pos = self:GetPos()
         local angles = self:GetAngles()
-        local mins = pos - (angles:Forward() * TRIGGER_MINS.x) - (angles:Right() * TRIGGER_MINS.y)
-        local maxs = pos + (angles:Forward() * TRIGGER_MAXS.x) + (angles:Right() * TRIGGER_MAXS.y) + (angles:Up() * TRIGGER_MAXS.z)
+        local mins = pos  - (angles:Forward() * 20) - (angles:Right() * 20)
+        local maxs = pos + (angles:Forward() * 20) + (angles:Right() * 20) + (angles:Up() * 18)
+
         
         self.ButtonTrigger:SetCollisionBounds(self:WorldToLocal(mins), self:WorldToLocal(maxs))
     end
