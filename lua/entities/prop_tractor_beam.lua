@@ -22,6 +22,7 @@ end
 
 function ENT:SetupDataTables()
     self:NetworkVar("Bool", "Enabled") -- shared var for particles
+    self:NetworkVar("Float", "_LinearForce") -- shared var for particles
 
     if CLIENT then
         self:NetworkVarNotify("Enabled", self.OnEnabled)
@@ -41,6 +42,7 @@ function ENT:Initialize()
         self.ArmatureStartTime = CurTime()
 
         self.StartLinearForce = self.StartLinearForce or 0
+        self:Set_LinearForce(self.StartLinearForce)
 
         if self.Use128Model then
             self:SetModel("models/props_ingame/tractor_beam_128.mdl")
@@ -80,7 +82,7 @@ if SERVER then
             self.Beam = ents.Create("projected_tractor_beam_entity")
             local ang = self:GetAngles()
             self.Beam:Spawn()
-            self.Beam:SetPos(self:GetPos() + ang:Forward() * 8)
+            self.Beam:SetPos(self:GetPos())
             self.Beam:SetParent(self)
             self.Beam:SetRadius(self.Use128Model and 55 or 60)
             self.Beam:SetLinearForce(self.StartLinearForce)
@@ -170,6 +172,7 @@ if SERVER then
         self.sndBeam:Play()
 
         self.StartLinearForce = force
+        self:Set_LinearForce(self.StartLinearForce)
     end
 end
 
@@ -177,6 +180,10 @@ function ENT:Think()
     if SERVER then
         self:SetPoseParameter("reversal", self:CalculateArmaturePose())
         self:SetPlaybackRate(self:CalculateRotationPose())
+    else
+        if not PropTractorBeam.IsAdded(self) then
+            PropTractorBeam.AddToRenderList(self)
+        end
     end
     
     self:NextThink(CurTime())

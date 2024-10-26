@@ -12,6 +12,9 @@ ProjectedWallEntity.Walls = ProjectedWallEntity.Walls or {}
 ProjectedTractorBeamEntity = ProjectedTractorBeamEntity or {}
 ProjectedTractorBeamEntity.Beams = ProjectedTractorBeamEntity.Beams or {}
 
+PropTractorBeam = PropTractorBeam or {}
+PropTractorBeam.Beams = PropTractorBeam.Beams or {}
+
 NpcPortalTurretFloor = NpcPortalTurretFloor or {}
 NpcPortalTurretFloor.Turrets = NpcPortalTurretFloor.Turrets or {}
 
@@ -31,6 +34,9 @@ local PROJECTED_WALL_MATERIAL = Material("effects/projected_wall")
 local PROJECTED_BEAM_MATERIAL = Material("effects/tractor_beam_blue")
 local PROJECTED_BEAM_MATERIAL_INVERSE = Material("effects/tractor_beam_orange")
 
+local PROJECTED_BEAM_COLOR_NORMAL = Color(40,90,255)
+local PROJECTED_BEAM_COLOR_INVERTED = Color(255,60,0)
+
 local PROJECTED_BEAM_MATERIAL_CORE_BLUE = PROJECTED_BEAM_MATERIAL:GetTexture("$basetexture")
 local PROJECTED_BEAM_MATERIAL_CORE1_BLUE = PROJECTED_BEAM_MATERIAL:GetTexture("$detail2")
 local PROJECTED_BEAM_MATERIAL_CORE2_BLUE = PROJECTED_BEAM_MATERIAL:GetTexture("$detail1")
@@ -38,6 +44,9 @@ local PROJECTED_BEAM_MATERIAL_CORE2_BLUE = PROJECTED_BEAM_MATERIAL:GetTexture("$
 local PROJECTED_BEAM_MATERIAL_CORE_ORANGE = PROJECTED_BEAM_MATERIAL_INVERSE:GetTexture("$basetexture")
 local PROJECTED_BEAM_MATERIAL_CORE1_ORANGE = PROJECTED_BEAM_MATERIAL_INVERSE:GetTexture("$detail2")
 local PROJECTED_BEAM_MATERIAL_CORE2_ORANGE = PROJECTED_BEAM_MATERIAL_INVERSE:GetTexture("$detail1")
+
+local PROP_TRACTOR_BEAM = Material("sprites/beam_laser_soft_01")
+local PROP_TRACTOR_GLOW = Material("particle/particle_glow_05")
 
 local END_POINT_PULSE_SCALE = 16
 
@@ -124,7 +133,7 @@ end
 
 function ProjectedWallEntity.Render()
     for entity, wall in pairs(ProjectedWallEntity.Walls) do
-        if not IsValid(entity) then
+        if not IsValid(entity)  then
             ProjectedWallEntity.Walls[entity] = nil
             return
         end
@@ -197,6 +206,69 @@ function ProjectedTractorBeamEntity.Render()
             entity.baseTransformPosition = (entity.baseTransformPosition + rate * FrameTime()) % 1
             
             beam:Draw()
+        end
+    end
+end
+
+function PropTractorBeam.AddToRenderList(beam)
+    PropTractorBeam.Beams[beam] = true
+end
+
+function PropTractorBeam.IsAdded(beam)
+    return PropTractorBeam.Beams[beam] ~= nil
+end
+
+function PropTractorBeam.Render()
+    for beam in pairs(PropTractorBeam.Beams) do
+        if not IsValid(beam) then
+            PropTractorBeam.Beams[beam] = nil
+            continue 
+        end
+
+        beam.CachedAttachments = beam.CachedAttachments or {}
+        beam.AttachmentTrails = beam.AttachmentTrails or {{}, {}, {}}
+        beam.NextParticleCoreTime = beam.NextParticleCoreTime or CurTime() + 0.05
+
+        if beam:GetEnabled() and CurTime() > beam.NextParticleCoreTime then
+            local effectdata = EffectData()
+            effectdata:SetEntity(beam)
+            effectdata:SetMagnitude(2.5)
+            effectdata:SetRadius(40)
+            effectdata:SetColor(reverse and 1 or 0)
+            util.Effect("tractor_beam_effect", effectdata)
+
+            beam.NextParticleCoreTime = CurTime() + 0.05
+        end
+
+        for i = 1, 3 do
+            beam.CachedAttachments[i] = beam.CachedAttachments[i] or beam:LookupAttachment("emitter" .. i)
+            local attach = beam:GetAttachment(beam.CachedAttachments[i])
+
+            if attach then
+                if beam:GetEnabled() then
+                    render.SetMaterial(PROP_TRACTOR_GLOW)
+                    render.DrawSprite(attach.Pos, 96, 96, beam:Get_LinearForce() < 0 and PROJECTED_BEAM_COLOR_INVERTED or PROJECTED_BEAM_COLOR_NORMAL)
+                    table.insert(beam.AttachmentTrails[i], {Pos = attach.Pos, LifeTime = 2, MaxLifeTime = 2})
+                end
+
+                render.SetMaterial(PROP_TRACTOR_BEAM)
+                render.StartBeam(#beam.AttachmentTrails[i])
+                for b = 1, #beam.AttachmentTrails[i] do
+                    local trailPoint = beam.AttachmentTrails[i][b]
+
+                    local width = 8 * (trailPoint.LifeTime / trailPoint.MaxLifeTime)
+                    render.AddBeam(trailPoint.Pos, width, 0, beam:Get_LinearForce() < 0 and PROJECTED_BEAM_COLOR_INVERTED or PROJECTED_BEAM_COLOR_NORMAL)
+
+                    trailPoint.LifeTime = trailPoint.LifeTime - FrameTime()
+                end
+                render.EndBeam()
+
+                for b = #beam.AttachmentTrails[i], 1, -1 do
+                    if beam.AttachmentTrails[i][b].LifeTime <= 0 then
+                        table.remove(beam.AttachmentTrails[i], b)
+                    end
+                end
+            end
         end
     end
 end
@@ -322,4 +394,5 @@ hook.Add("PostDrawTranslucentRenderables", "GP2::PostDrawTranslucentRenderables"
     ProjectedWallEntity.Render()
     ProjectedTractorBeamEntity.Render()
     NpcPortalTurretFloor.Render()
+    PropTractorBeam.Render()
 end)

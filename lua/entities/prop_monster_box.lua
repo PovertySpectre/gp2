@@ -91,12 +91,15 @@ end
 function ENT:CreateVPhysics()
     self:SetSolid(SOLID_NONE)
     self:SetGroundEntity(NULL)
-    self:PhysicsInit(SOLID_VPHYSICS)
 
-    if self:GetPhysicsObject() then
-        self:GetPhysicsObject():SetMass(40.0)
-        self:GetPhysicsObject():Wake()
-    end
+    timer.Simple(0, function()
+        self:PhysicsInit(SOLID_VPHYSICS)
+
+        if self:GetPhysicsObject() then
+            self:GetPhysicsObject():SetMass(40.0)
+            self:GetPhysicsObject():Wake()
+        end
+    end)
 end
 
 function ENT:BecomeBox(force)
