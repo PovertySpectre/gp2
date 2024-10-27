@@ -18,6 +18,8 @@ local sv_personality_core_pca_pitch = CreateConVar("sv_personality_core_pca_pitc
 local sv_personality_core_pca_yaw = CreateConVar("sv_personality_core_pca_yaw", "-90", FCVAR_NONE, "Yaw value for personality core perferred carry angles.")
 local sv_personality_core_pca_roll = CreateConVar("sv_personality_core_pca_roll", "195", FCVAR_NONE, "Roll value for personality core perferred carry angles.")
 
+PrecacheParticleSystem("")
+
 if SERVER then
     ENT.IdleOverrideSequence = 0
 end
@@ -25,6 +27,7 @@ end
 function ENT:SetupDataTables()
     self:NetworkVar( "Bool", "Attached" )
     self:NetworkVar( "Bool", "PickupEnabled" )
+    self:NetworkVar( "Bool", "FlashlightEnabled" )
     self:NetworkVar( "Bool", "DropEnabled" )
 
     if SERVER then
@@ -34,10 +37,10 @@ function ENT:SetupDataTables()
 end
 
 function ENT:Initialize()
-    self.IdleOverrideSequence = self:LookupSequence("idle")
+    self.IdleOverrideSequence = nil
+    self.FlashLightAttachment = self:LookupAttachment("eyes")
     
     if SERVER then
-        self:SetModel(CORE_MODEL)
         self:ChooseSkins()
         self:SetSolidFlags(FSOLID_NOT_STANDABLE)
         self:SetMoveType(MOVETYPE_VPHYSICS)
@@ -87,6 +90,12 @@ ENT.__input2func = {
         if ply and IsValid(ply) then
             ply:PickupObject(self)
         end
+    end,
+    ["enableflashlight"] = function(self, activator, caller, data)
+        self:SetFlashlightEnabled(true)
+    end,
+    ["disableflashlight"] = function(self, activator, caller, data)
+        self:SetFlashlightEnabled(false)
     end,
     ["enablepickup"] = function(self, activator, caller, data)
         self:SetPickupEnabled(true)
@@ -139,11 +148,15 @@ if SERVER then
 
     function ENT:KeyValue(k, v)   
         if k == "ModelSkin" then
-            self:SetSkin(tonumber(v))
+            self.ModelSkin = tonumber(v)
         end
 
         if k == "altmodel" then   
-            self:SetModel(CORE_SKINS_MODEL)
+            self.AltModel = tobool(v)
+            
+            if tobool(v) then
+                print('using alt model ')
+            end
         end
 
         if k:StartsWith("On") then
@@ -152,23 +165,30 @@ if SERVER then
     end
 
     function ENT:ChooseSkins()
+        if self.AltModel then
+            self:SetModel(CORE_SKINS_MODEL)
+        else
+            self:SetModel(CORE_MODEL)
+        end
 
+        self:SetSkin(self.ModelSkin or 0)
     end
 
     function ENT:SetIdleSequence(sequence)
         self.IdleOverrideSequence = self:LookupSequence(sequence)
-        self:SetSequence(self.IdleOverrideSequence)
+        self:ResetSequence(self.IdleOverrideSequence)
     end
 
     function ENT:ClearIdleSequence()
         self.IdleOverrideSequence = nil 
-        self:ResetSequence(ACT_IDLE)
         self:SetIdealActivity(ACT_IDLE)
     end
 
     function ENT:RunAI()
         if not self.IdleOverrideSequence and not self:GetAttached() then
             self:MaintainActivity()
+        elseif self.IdleOverrideSequence and self:IsSequenceFinished() then
+            self:ResetSequence(self.IdleOverrideSequence)
         end
     end
 
@@ -231,6 +251,73 @@ if SERVER then
     function ENT:GetPreferredCarryAngles()
         return Angle(sv_personality_core_pca_pitch:GetFloat(), sv_personality_core_pca_yaw:GetFloat(), sv_personality_core_pca_roll:GetFloat())
     end
+end
+
+function ENT:Draw(flags)
+    self:DrawModel()
+
+    if self:GetFlashlightEnabled() and self.FlashLightAttachment ~= -1 then
+        local attach = self:GetAttachment(self.FlashLightAttachment)
+
+        if not IsValid(self.ProjectedTexture) then
+            self.ProjectedTexture = ProjectedTexture()
+            self.ProjectedTexture:SetFOV(85)
+            self.ProjectedTexture:SetEnableShadows(true)
+            self.ProjectedTexture:SetTexture("effects/flashlight001_improved")
+            self.ProjectedTexture:SetPos(attach.Pos)
+            self.ProjectedTexture:SetAngles(attach.Ang)
+            self.ProjectedTexture:Update()
+        else
+            self.ProjectedTexture:SetPos(attach.Pos)
+            self.ProjectedTexture:SetAngles(attach.Ang)
+            self.ProjectedTexture:Update()
+        end
+
+        if not IsValid(self.FlashlightEffect) then
+            self.FlashlightEffect = CreateParticleSystem(self, "flashlight_thirdperson", PATTACH_POINT_FOLLOW, self:LookupAttachment("flashlightAttachment"))
+            self.FlashlightEffect:StartEmission(true)
+            
+            self.FlashlightEffect:AddControlPoint(0, self, PATTACH_CUSTOMORIGIN)
+            self.FlashlightEffect:AddControlPoint(2, self, PATTACH_CUSTOMORIGIN)
+
+        else
+            local tr = util.TraceLine({
+                start = attach.Pos,
+                endpos = attach.Pos + attach.Ang:Forward() * 256,
+                mask = MASK_SHOT_PORTAL -- idk, they're removing CONTENTS_GRATE
+            })
+
+            self.FlashlightEffect:SetControlPoint(1, attach.Pos)
+            self.FlashlightEffect:SetControlPoint(2, tr.HitPos)
+            self.FlashlightEffect:SetControlPointForwardVector(1, attach.Ang:Forward())
+        end
+
+        local dlight = DynamicLight( self:EntIndex() )
+        if ( dlight ) then
+            dlight.pos = attach.Pos + attach.Ang:Forward() * 2
+            dlight.r = 31
+            dlight.g = 31
+            dlight.b = 31
+            dlight.brightness = 2
+            dlight.decay = 1000
+            dlight.size = 64
+            dlight.dietime = CurTime() + 1e10
+        end
+    else
+        if IsValid(self.ProjectedTexture) then
+            self.ProjectedTexture:Remove()
+            self.ProjectedTexture = nil
+        end
+
+        if IsValid(self.FlashlightEffect) then
+            self.FlashlightEffect:StopEmission()
+            self.FlashlightEffect = nil
+        end
+    end
+end
+
+function ENT:UpdateTransmitState()
+    return self:GetFlashlightEnabled() and TRANSMIT_ALWAYS or TRANSMIT_PVS
 end
 
 function ENT:Think()
