@@ -17,6 +17,8 @@ function ENT:AcceptInput(name, activator, caller, data)
     end
 
     if name == "changelevel" then    
+        self:TriggerOutput("OnChangeLevel")
+
         for _, ply in ipairs(player.GetAll()) do
             ply:ScreenFade(SCREENFADE.OUT, black, 0.25, 0.5)
         end
@@ -25,6 +27,7 @@ function ENT:AcceptInput(name, activator, caller, data)
             RunConsoleCommand("changelevel", data)
         end)
     elseif name == "changelevelpostfade" then
+        self:TriggerOutput("OnChangeLevel")
         RunConsoleCommand("changelevel", data)
     end
 end  
