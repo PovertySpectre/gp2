@@ -10,6 +10,12 @@ local black = Color(0,0,0)
 function ENT:AcceptInput(name, activator, caller, data)
     name = name:lower()
 
+    function ENT:KeyValue(k, v)   
+        if k:StartsWith("On") then
+            self:StoreOutput(k, v)
+        end
+    end
+
     if name == "changelevel" then    
         for _, ply in ipairs(player.GetAll()) do
             ply:ScreenFade(SCREENFADE.OUT, black, 0.25, 0.5)
