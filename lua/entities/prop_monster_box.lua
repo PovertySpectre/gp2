@@ -354,7 +354,7 @@ function ENT:AnimateThink()
                     filter = self
                 })
 
-                if tr.fraction == 1 then
+                if tr.fraction == 1 or not tr.Hit then
                     self:ResetSequence("intheair")
                 else
                     local iRandom1 = math.random(0, 2)
