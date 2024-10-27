@@ -212,7 +212,7 @@ function ENT:HandleAnimEvent(event, eventTime, cycle, type, options)
 
             local tr = util.TraceLine({
                 start = self:GetPos(),
-                endPos = vecAbsEnd,
+                endpos = vecAbsEnd,
                 mask = MASK_SOLID,
                 filter = self
             })
@@ -306,7 +306,7 @@ function ENT:AnimateThink()
 
             local tr = util.TraceHull({
                 start = self:GetPos(),
-                endPos = self:GetPos(),
+                endpos = self:GetPos(),
                 mins = mins,
                 maxs = maxs,
                 mask = MASK_SOLID,
@@ -349,7 +349,7 @@ function ENT:AnimateThink()
 
                 local tr = util.TraceLine({
                     start = self:GetPos(),
-                    endPos = vecImpulse,
+                    endpos = vecImpulse,
                     mask = MASK_SOLID,
                     filter = self
                 })
