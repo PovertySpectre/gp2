@@ -63,6 +63,10 @@ if SERVER then
             local size = self:GetSize()
             size.x = tonumber(v)
             self:SetSize(size)
+        elseif k == "height" then
+            local size = self:GetSize()
+            size.y = tonumber(v)
+            self:SetSize(size)            
         elseif k == "forcedslave" then
             self:SetIsMaster(false)
         end
