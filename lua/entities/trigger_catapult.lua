@@ -127,7 +127,7 @@ function ENT:PassesTriggerFilters(ent)
         end
 
         if self:HasSpawnFlags(SF_TRIGGER_ONLY_CLIENTS_OUT_OF_VEHICLES) and ent:IsPlayer() then
-            if ent:InVehicle() == true then return false end
+            if not ent:InVehicle() == true then return false end
         end
 
         local filterName = self:GetFilterName()
