@@ -96,7 +96,6 @@ function ENT:SetupDataTables()
         self:SetLowerThreshold(0.30)
         self:SetPlayerSpeed(450)
         self:SetPhysicsSpeed(450)
-        self:SetEnabled(true)
     end
 end
 
@@ -150,7 +149,6 @@ function ENT:PassesTriggerFilters(ent)
 end
 
 function ENT:StartTouch(other)
-    if not self:GetEnabled() then return end
     if not self.RefireDelay then return end
 
     if not IsValid(other) then
@@ -288,10 +286,6 @@ function ENT:StartTouch(other)
 end
 
 function ENT:EndTouch(other)
-    -- I think if trigger is disabled allow removing
-    -- ents from AbortedLaunchees
-    --if not self:GetEnabled() then return end
-
     -- Remove from list becuase player won't catapult prop
     if not other:IsPlayer() and self.AbortedLaunchees[other] then
         self.AbortedLaunchees[other] = nil
