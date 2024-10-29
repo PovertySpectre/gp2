@@ -298,5 +298,10 @@ else
         net.Start(GP2.Net.SendLoadedToServer)
             net.WriteEntity(LocalPlayer())
         net.SendToServer()
+        
+        LocalPlayer():PrintMessage(HUD_PRINTTALK, "Welcome to GP2! This message is temp.")
+        if gp2_remove_suit_on_spawn:GetBool() then
+            LocalPlayer():PrintMessage(HUD_PRINTTALK, "If you're missing suit set gp2_remove_suit_on_spawn to 0")
+        end
     end )
 end
