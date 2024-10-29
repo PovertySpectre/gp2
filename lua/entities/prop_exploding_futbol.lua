@@ -56,7 +56,7 @@ function ENT:Initialize()
 
     local phys = self:GetPhysicsObject()
 
-    if IsValid(phys) then
+    if not self:HasSpawnFlags(SF_PHYSPROP_MOTIONDISABLED) and IsValid(phys) then
         phys:Wake()
     end
 end
