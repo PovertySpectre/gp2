@@ -52,7 +52,7 @@ function ENT:KeyValue(k, v)
     elseif k == "AirCtrlSupressionTime" then
         self:SetAirCtrlSupressionTime(tonumber(v)) 
     elseif k == "StartDisabled" then
-        self:Fire("Disable")
+        self:SetEnabled(not tobool(v))
     elseif k == "filtername" then
         self:SetFilterName(v)
     end
@@ -148,6 +148,7 @@ function ENT:PassesTriggerFilters(ent)
 end
 
 function ENT:StartTouch(other)
+    if not self:GetEnabled() then return end
     if not self.RefireDelay then return end
 
     if not IsValid(other) then
@@ -285,6 +286,10 @@ function ENT:StartTouch(other)
 end
 
 function ENT:EndTouch(other)
+    -- I think if trigger is disabled allow removing
+    -- ents from AbortedLaunchees
+    --if not self:GetEnabled() then return end
+
     -- Remove from list becuase player won't catapult prop
     if not other:IsPlayer() and self.AbortedLaunchees[other] then
         self.AbortedLaunchees[other] = nil
