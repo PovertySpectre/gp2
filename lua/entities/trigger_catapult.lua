@@ -52,7 +52,9 @@ function ENT:KeyValue(k, v)
     elseif k == "AirCtrlSupressionTime" then
         self:SetAirCtrlSupressionTime(tonumber(v)) 
     elseif k == "StartDisabled" then
-        self:SetEnabled(not tobool(v))
+        if tobool(v) then
+            self:Input("Disable")
+        end
     elseif k == "filtername" then
         self:SetFilterName(v)
     end
