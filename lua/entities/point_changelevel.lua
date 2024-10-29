@@ -7,14 +7,14 @@ ENT.Type = "point"
 
 local black = Color(0,0,0)
 
+function ENT:KeyValue(k, v)   
+    if k:StartsWith("On") then
+        self:StoreOutput(k, v)
+    end
+end
+
 function ENT:AcceptInput(name, activator, caller, data)
     name = name:lower()
-
-    function ENT:KeyValue(k, v)   
-        if k:StartsWith("On") then
-            self:StoreOutput(k, v)
-        end
-    end
 
     if name == "changelevel" then    
         self:TriggerOutput("OnChangeLevel")
