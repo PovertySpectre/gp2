@@ -508,17 +508,6 @@ function VguiNeurotoxinCountdown.AddToRenderList(panel)
 end
 
 function VguiNeurotoxinCountdown.Render()
-    cam.Start2D()
-        surface.SetDrawColor(0,0,0,76)
-        surface.DrawRect(0,0,16,32)
-
-        local i = 0
-        for panel in pairs(VguiNeurotoxinCountdown.Panels) do
-            draw.SimpleText(tostring(panel) .. (panel:GetEnabled() and " (ENABLED)" or " (DISABLED)"), "DebugOverlay", 60, 50 + 16 * i)
-            i = i + 1
-        end
-    cam.End2D()
-
     for panel in pairs(VguiNeurotoxinCountdown.Panels) do
         if not IsValid(panel) then
             VguiNeurotoxinCountdown.Panels[panel] = nil
@@ -526,7 +515,6 @@ function VguiNeurotoxinCountdown.Render()
         end
 
         if not panel:GetEnabled() then continue end
-        --print('Rendering ' .. tostring(panel))
 
         local pos = panel:GetPos()
         local ang = panel:GetAngles()
