@@ -153,7 +153,7 @@ function VguiMovieDisplay.Render()
             VguiMovieDisplay.Movies[display] = nil
             continue
         end
-        if not display:GetActive() then return end
+        if not display:GetActive() then continue end
 
         local pos = display:GetPos()
         local ang = display:GetAngles()
@@ -488,4 +488,89 @@ end
 
 function VguiSPProgressSign.RemoveDisplay(sign)
     VguiSPProgressSign.Signs[sign] = nil
+end
+
+-------------------------------
+-- vgui_neurotoxin_countdown
+-------------------------------
+
+VguiNeurotoxinCountdown = VguiNeurotoxinCountdown or {}
+VguiNeurotoxinCountdown.Panels = VguiNeurotoxinCountdown.Panels or {}
+
+local toxinCountdownBackgound = Material("vgui/screens/screen")
+
+function VguiNeurotoxinCountdown.IsAddedToRenderList(panel)
+    return VguiNeurotoxinCountdown.Panels[panel] ~= nil
+end
+
+function VguiNeurotoxinCountdown.AddToRenderList(panel)
+    VguiNeurotoxinCountdown.Panels[panel] = true
+end
+
+function VguiNeurotoxinCountdown.Render()
+    cam.Start2D()
+        surface.SetDrawColor(0,0,0,76)
+        surface.DrawRect(0,0,16,32)
+
+        local i = 0
+        for panel in pairs(VguiNeurotoxinCountdown.Panels) do
+            draw.SimpleText(tostring(panel) .. (panel:GetEnabled() and " (ENABLED)" or " (DISABLED)"), "DebugOverlay", 60, 50 + 16 * i)
+            i = i + 1
+        end
+    cam.End2D()
+
+    for panel in pairs(VguiNeurotoxinCountdown.Panels) do
+        if not IsValid(panel) then
+            VguiNeurotoxinCountdown.Panels[panel] = nil
+            continue
+        end
+
+        if not panel:GetEnabled() then continue end
+        --print('Rendering ' .. tostring(panel))
+
+        local pos = panel:GetPos()
+        local ang = panel:GetAngles()
+
+        local angRotated = panel:GetAngles()
+        angRotated:RotateAroundAxis(ang:Up(), 90)
+        angRotated:RotateAroundAxis(ang:Right(), -90)
+
+        local width = panel:GetWidth()
+        local height = panel:GetHeight()
+
+        width = width * 2
+        height = height * 2 
+
+        cam.Start3D2D(pos + ang:Up() * height * 0.5, angRotated, 0.5)
+
+            surface.SetDrawColor(255, 255, 255, 255)
+            surface.SetMaterial(toxinCountdownBackgound)
+            surface.DrawTexturedRect(0, 0, width, height)
+        
+            local remaining = math.max(0, panel:GetTimeUntil() - CurTime())
+
+            panel.Blinked = panel.Blinked or false
+            panel.BlinkTime = panel.BlinkTime or 0
+
+            if not panel.Blinked then
+                local minutes = math.floor(remaining / 60)
+                local seconds = math.floor(remaining % 60)
+                local milliseconds = math.floor((remaining % 1) * 100)
+            
+                local text = string.format("%02d:%02d:%02d", minutes, seconds, milliseconds)
+            
+                surface.SetFont("NeurotoxinCountdown")
+                local twidth, theight = surface.GetTextSize(text)
+            
+                surface.SetTextPos(width / 2 - twidth / 1.9, height / 2 - theight / 2)
+                surface.SetTextColor(0, 0, 0, 255)
+                surface.DrawText(text)
+            end
+
+            if remaining < 0.01 and CurTime() > panel.BlinkTime then
+                panel.Blinked = not panel.Blinked
+                panel.BlinkTime = CurTime() + 0.15
+            end
+        cam.End3D2D()
+    end
 end

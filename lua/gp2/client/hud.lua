@@ -37,6 +37,14 @@ local function CreateFonts()
         antialias = true,
     })
 
+    surface.CreateFont("NeurotoxinCountdown", {
+        font = "Univers LT Std 47 Cn Lt",
+        extended = true,
+        size = 120,
+        weight = 600,
+        antialias = true,
+    })
+
     surface.CreateFont("DebugOverlayBig", {
         font = "Courier New",
         extended = true,

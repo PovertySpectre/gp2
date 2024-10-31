@@ -114,13 +114,13 @@ function MouthManager.Think()
                 SphereMouth = math.max(lpData[marker], 0.5)
                 --print('Mouth for sphere updated to ' .. SphereMouth)
             elseif is_potatos(actor) then
-                PotatosMouth = math.max(lpData[marker], 0.1)
+                PotatosMouth = math.max(lpData[marker], 0)
                 --print('Mouth for potatos updated to ' .. PotatosMouth)
             end
         end
     end
 
-    PotatosMouth = math.Approach(PotatosMouth, 0.1, 0.03)
+    PotatosMouth = math.Approach(PotatosMouth, 0.5, 0.03)
     SphereMouth = math.Approach(SphereMouth, 0, 0.03)
     SetGlobalFloat(PotatosMouthName, PotatosMouth)
     SetGlobalFloat(SphereMouthName, SphereMouth)

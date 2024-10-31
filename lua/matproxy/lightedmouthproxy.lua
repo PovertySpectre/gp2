@@ -64,7 +64,7 @@ matproxy.Add( {
             if not GetGlobalBool(PotatosEnabled, true ) then
                 mat:SetFloat(self.ResultTo, 0)
             else
-                mat:SetFloat(self.ResultTo, 0.1 + GetGlobalFloat(PotatosMouthName, 1) * 0.5)
+                mat:SetFloat(self.ResultTo, GetGlobalFloat(PotatosMouthName, 1) * 0.5)
             end
         end
    end 

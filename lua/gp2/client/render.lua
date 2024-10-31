@@ -418,6 +418,7 @@ hook.Add("PreDrawTranslucentRenderables", "GP2::PreDrawTranslucentRenderables", 
     PropIndicatorPanel.Render()
     VguiMovieDisplay.Render()
     VguiSPProgressSign.Render()
+    VguiNeurotoxinCountdown.Render()
 end)
 
 

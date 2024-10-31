@@ -211,6 +211,7 @@ function GladosPlayVcd(arg, IgnoreQueue, caller)
         -- if SkipIfBusy is present & we're already playing a scene, skip this new scene
         if SceneTable[arg]["skipifbusy"] then
             if IsValid(characterCurscene(SceneTable[arg].char)) then
+                printdebug("Skipping because SkipIfBusy is present and we're playing a scene")
                 return
             end
         end
@@ -221,12 +222,14 @@ function GladosPlayVcd(arg, IgnoreQueue, caller)
                 if SceneTable[arg]["queuecharacter"] then
                     -- queue if a specific character is talking 
                     if IsValid(characterCurscene(SceneTable[arg].queuecharacter)) then
+                        printdebug('Adding to queue because a specific character ' .. SceneTable[arg].queuecharacter .. ' is talking ' .. tostring(characterCurscene(SceneTable[arg].char)))
                         QueueAdd(arg)
                         return
                     end
                 else
                     --otherwise, queue if the character associated with the vcd is talking
                     if IsValid(characterCurscene(SceneTable[arg].char)) then
+                        printdebug('Adding to queue because a character ' .. SceneTable[arg].char .. ' associated with the vcd is talking ' .. tostring(characterCurscene(SceneTable[arg].char)))
                         QueueAdd(arg)
                         return
                     end
