@@ -3,6 +3,12 @@
 -- Head-up-Display
 -- ----------------------------------------------------------------------------
 
+include("gp2/client/hudelements/base.lua")
+
+for _, element in ipairs(file.Find("gp2/client/hudelements/hud_*.lua", "LUA")) do
+    include(string.format("gp2/client/hudelements/%s", element))
+end
+
 local renderlists = {}
 
 local surface_SetMaterial = surface.SetMaterial
@@ -21,6 +27,8 @@ local matWarningIcon = Material("hud/warning.png", "smooth")
 
 local ScrWide, ScrHeight = ScrW(), ScrH()
 
+local hudElements = {}
+
 local function CreateFonts()
     surface.CreateFont("VscriptErrorText", {
         font = "Roboto Medium",
@@ -37,11 +45,33 @@ local function CreateFonts()
         antialias = true,
     })
 
+    surface.CreateFont("CenterPrintText0", {
+        font = "Univers LT Std 47 Cn Lt",
+        extended = true,
+        size = ScreenScaleH(24),
+        weight = 600,
+        antialias = true,
+    })
+
+    surface.CreateFont("CenterPrintText1", {
+        font = "Univers LT Std 47 Cn Lt",
+        extended = true,
+        size = ScreenScaleH(32),
+        weight = 600,
+        antialias = true,
+    })
+
+    surface.CreateFont("CenterPrintText2", {
+        font = "Univers LT Std 47 Cn Lt",
+        extended = true,
+        size = ScreenScaleH(17),
+        antialias = true,
+    })
+
     surface.CreateFont("NeurotoxinCountdown", {
         font = "Univers LT Std 47 Cn Lt",
         extended = true,
         size = 120,
-        weight = 600,
         antialias = true,
     })
 
@@ -53,8 +83,6 @@ local function CreateFonts()
         outline = true
     })
 end
-
-CreateFonts()
 
 GP2.Hud = {
     DeclareLegacyElement = function(func)
@@ -164,6 +192,19 @@ local function RenderError(err, position)
         max(ScrHeight * 0.002, 1))
 end
 
+local function CreateHudElements()
+    for i = 1, #hudElements do
+        if hudElements[i].Remove and isfunction(hudElements[i].Remove) then
+            hudElements[i].Remove(hudElements[i])
+        end
+    end       
+    
+    -- Create elements here
+    hudElements = {
+        vgui.Create("GP2HudMessage")
+    }
+end
+
 GP2.Hud.DeclareLegacyElement(function(scrw, scrh)
     for i = 1, #vscriptErrors do
         local err = vscriptErrors[i]
@@ -200,4 +241,24 @@ hook.Add("OnScreenSizeChanged", "GP2::OnScreenSizeChanged", function(oW, oH, w, 
     ScrHeight = h
 
     CreateFonts()
+    CreateHudElements()
+end) 
+
+hook.Add("Initialize", "GP2::HudInitialize", function()
+    CreateFonts()
+    CreateHudElements()    
+end)
+
+hook.Add("Think", "GP2::HudThink", function()
+    for i = 1, #hudElements do
+        local element = hudElements[i]
+
+        if IsValid(element) then
+            if not element:ShouldDraw() and element:IsVisible() then
+                element:SetVisible(false)
+            elseif element:ShouldDraw() and not element:IsVisible() then
+                element:SetVisible(true)
+            end
+        end
+    end
 end)

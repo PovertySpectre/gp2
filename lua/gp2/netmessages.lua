@@ -19,6 +19,7 @@ AddNetworkMessage "SendPrecacheMovie"
 AddNetworkMessage "SendDeferredParticleSystem"
 AddNetworkMessage "SendLoadedToServer"
 AddNetworkMessage "SendPaintSurfaces"
+AddNetworkMessage "SendHudText"
 
 if SERVER then
     for net in pairs(GP2.Net) do
