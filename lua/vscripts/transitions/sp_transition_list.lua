@@ -45,7 +45,7 @@ end
 function TryDisplayChapterTitle()
     local level = CHAPTER_TITLES[game.GetMap()]
 
-    if level and level.displayonSpawn then
+    if level and level.displayOnSpawn then
         DisplayChapterTitle()
     end
 end
@@ -215,6 +215,8 @@ function OnPostTransition()
     end
 
     EntFire("arrival_elevator-elevator_1_interior_start_trigger", "Enable", 0, 0.5)
+
+    TryDisplayChapterTitle()
 end
 
 function Think()
@@ -276,7 +278,7 @@ function TransitionFromMap()
                 nextMap = MapPlayOrder[i1]
             end
 
-            if not nextMap then return end
+            if not nextMap then continue end
 
             if nextMap then
                 print("Changing level to " .. nextMap)
