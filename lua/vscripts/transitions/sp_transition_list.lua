@@ -22,6 +22,8 @@ CHAPTER_TITLES = {
     ["sp_a4_finale1"] = { title_text = "#portal2_Chapter9_Title", subtitle_text = "#portal2_Chapter9_Subtitle", displayOnSpawn = false, displaydelay = 1.0 },
 }
 
+local shownChapterTitle = false
+
 -- Display the chapter title
 function DisplayChapterTitle()
     local level = CHAPTER_TITLES[game.GetMap()]
@@ -38,6 +40,8 @@ function DisplayChapterTitle()
         EntFire( "@chapter_subtitle_text", "SetPosY", "0.35", 0.0 )
         EntFire( "@chapter_subtitle_text", "settext", level.subtitle_text, 0.0 )
         EntFire( "@chapter_subtitle_text", "display", "", level.displaydelay )
+
+        shownChapterTitle = true
     end
 end
 
@@ -45,7 +49,7 @@ end
 function TryDisplayChapterTitle()
     local level = CHAPTER_TITLES[game.GetMap()]
 
-    if level and level.displayOnSpawn then
+    if level and level.displayOnSpawn and not shownChapterTitle then
         DisplayChapterTitle()
     end
 end
