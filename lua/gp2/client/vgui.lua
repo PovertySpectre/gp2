@@ -84,6 +84,8 @@ net.Receive(GP2.Net.SendPrecacheMovie, function(len, ply)
 end)
 
 function VguiMovieDisplay.AddDisplay(display)
+    VguiMovieDisplay.Movies[display] = true -- add it anyway even if we have something wrong
+
     if display:GetClass() ~= "vgui_movie_display" then return end
     if not display:GetActive() then return end
 
@@ -96,6 +98,8 @@ function VguiMovieDisplay.AddDisplay(display)
 
     if not VguiMovieDisplay.PrecachedMovies[movieName] and file.Exists("materials/" .. movieName .. ".vmt", "GAME") then
         VguiMovieDisplay.PrecachedMovies[movieName] = Material(movieName .. ".vmt")
+    else
+        return
     end
 
     if not VguiMovieDisplay.PrecachedMovies[movieName] then
@@ -115,8 +119,6 @@ function VguiMovieDisplay.AddDisplay(display)
         width = textureWidth,
         height = textureHeight,
     }
-
-    VguiMovieDisplay.Movies[display] = true
 end
 
 function VguiMovieDisplay.IsAddedDisplay(display)
@@ -160,6 +162,10 @@ function VguiMovieDisplay.Render()
 
         local size = display:GetSize()
         local width, height = size.x, size.y
+
+        if not VguiMovieDisplay.MovieGroups[display:GetGroupName()] then
+            continue
+        end
 
         local mat = VguiMovieDisplay.MovieGroups[display:GetGroupName()].mat
 
