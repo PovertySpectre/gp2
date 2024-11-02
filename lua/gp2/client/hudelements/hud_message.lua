@@ -60,7 +60,7 @@ net.Receive(GP2.Net.SendHudText, function(len, ply)
 
     local channelData = PANEL.Channels[channel]
 
-    channelData.Message = net.ReadString()
+    channelData.Message = language.GetPhrase(net.ReadString())
     channelData.PosX = net.ReadFloat()
     channelData.PosY = net.ReadFloat()
     channelData.EffectType = net.ReadInt(8)
