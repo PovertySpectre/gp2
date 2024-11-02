@@ -84,16 +84,17 @@ end)
 function PANEL:Init()
     self:SetWidth(ScrW())
     self:SetTall(ScrH())
+    self:SetParent(GetHUDPanel())
 end
 
 function PANEL:Paint(w, h)
     for i, data in ipairs(self.Channels) do
         if i == 2 then
-            surface.SetFont("CenterPrintText2")
+            surface.SetFont("CenterPrintText2Blur")
         elseif i == 3 then
-            surface.SetFont("CenterPrintText1")
+            surface.SetFont("CenterPrintText1Blur")
         else
-            surface.SetFont("CenterPrintText0")
+            surface.SetFont("CenterPrintText0Blur")
         end
 
         data.DieTime = data.DieTime or 0
@@ -107,6 +108,20 @@ function PANEL:Paint(w, h)
         local posY = h * (data.PosY ~= -1 and data.PosY or 0.5)
 
         local timeSinceStart = CurTime() - data.SpawnTime
+
+        surface.SetTextColor(0, 0, 0, data.Alpha)
+        surface.SetTextPos(posX, posY)
+        surface.DrawText(message)
+        surface.SetTextPos(posX, posY)
+        surface.DrawText(message)
+
+        if i == 2 then
+            surface.SetFont("CenterPrintText2")
+        elseif i == 3 then
+            surface.SetFont("CenterPrintText1")
+        else
+            surface.SetFont("CenterPrintText0")
+        end
         
         -- Render underlying text for Scan Out
         if data.EffectType == 2 then
