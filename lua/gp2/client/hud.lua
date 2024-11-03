@@ -68,6 +68,32 @@ local function CreateFonts()
         antialias = true,
     })
 
+    surface.CreateFont("CenterPrintText0Blur", {
+        font = "Univers LT Std 47 Cn Lt",
+        extended = true,
+        size = ScreenScaleH(24),
+        blursize = ScreenScaleH(4),
+        weight = 600,
+        antialias = true,
+    })
+
+    surface.CreateFont("CenterPrintText1Blur", {
+        font = "Univers LT Std 47 Cn Lt",
+        extended = true,
+        size = ScreenScaleH(32),
+        blursize = ScreenScaleH(6),
+        weight = 600,
+        antialias = true,
+    })
+
+    surface.CreateFont("CenterPrintText2Blur", {
+        font = "Univers LT Std 47 Cn Lt",
+        extended = true,
+        size = ScreenScaleH(17),
+        blursize = ScreenScaleH(2),
+        antialias = true,
+    })
+
     surface.CreateFont("NeurotoxinCountdown", {
         font = "Univers LT Std 47 Cn Lt",
         extended = true,
