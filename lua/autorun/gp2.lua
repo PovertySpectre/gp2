@@ -31,15 +31,19 @@ include("gp2/netmessages.lua")
 include("gp2/soundmanager.lua")
 include("gp2/particles.lua")
 include("gp2/entityextensions.lua")
+include("gp2/portaldetours.lua")
+include("gp2/portalmovement.lua")
 AddCSLuaFile("gp2/utils.lua")
 AddCSLuaFile("gp2/netmessages.lua")
 AddCSLuaFile("gp2/soundmanager.lua")
 AddCSLuaFile("gp2/particles.lua")
 AddCSLuaFile("gp2/entityextensions.lua")
-
+AddCSLuaFile("gp2/portaldetours.lua")
+AddCSLuaFile("gp2/portalmovement.lua")
+AddCSLuaFile("gp2/portalmovement.lua")
+AddCSLuaFile("gp2/paint.lua")
+AddCSLuaFile("gp2/client/hud.lua")
 GP2_VERSION = include("gp2/version.lua")
-
-gp2_remove_suit_on_spawn = CreateConVar("gp2_remove_suit_on_spawn", "1", FCVAR_ARCHIVE + FCVAR_REPLICATED, "Remove suit from player")
 
 list.Set( "ContentCategoryIcons", "Portal 2", "games/16/portal2.png" )
 
@@ -87,10 +91,13 @@ if SERVER then
     include("gp2/keyvalues.lua")
     -- Vscripts (serverside only)
     include("gp2/vscriptmanager.lua")
-    include("gp2/paint.lua")
     include("gp2/vgui.lua")
     include("gp2/mouthmanager.lua")
     include("gp2/gamemovement.lua")
+    include("gp2/portalpvs.lua")
+    include("gp2/portalpropteleport.lua")
+    include("gp2/paint.lua")
+    include("gp2/client/hud.lua")
 
     hook.Add("Initialize", "GP2::Initialize", function()
         SoundManager.Initialize()
@@ -101,17 +108,6 @@ if SERVER then
         -- Try to call OnPostPlayerSpawn on all Vscripted entities
         -- and siltently fail if there's no OnPostPlayerSpawn function in script
         -- pass player to scripts to handle logic per player
-
-        if gp2_remove_suit_on_spawn:GetBool() then
-            ply:StripWeapons()
-            ply:RemoveSuit()
-            ply:SprintDisable()
-
-            timer.Simple(0, function()
-                ply:SetWalkSpeed(190)
-                ply:AllowFlashlight(false)
-            end)
-        end
 
         GP2.VScriptMgr.CallHookFunction("OnPostPlayerSpawn", true, ply)
     end)
@@ -281,27 +277,15 @@ else
     end)
 
     include("gp2/paint.lua")
-    AddCSLuaFile("gp2/paint.lua")
-    include("gp2/client/hud.lua")
-    AddCSLuaFile("gp2/client/hud.lua")
     include("gp2/client/vgui.lua")
     AddCSLuaFile("gp2/client/vgui.lua")
+    include("gp2/client/hud.lua")
     include("gp2/client/render.lua")
-    AddCSLuaFile("gp2/client/render.lua")
+    include("gp2/client/portalrendering.lua")
+    include("gp2/client/render.lua")
+    AddCSLuaFile("gp2/client/portalrendering.lua")
 
     hook.Add("Think", "GP2::Think", function()
         SoundManager.Think()
     end)
-
-    gameevent.Listen( "player_activate" )
-    hook.Add( "player_activate", "GP2::PlayerActivate", function( data ) 
-        net.Start(GP2.Net.SendLoadedToServer)
-            net.WriteEntity(LocalPlayer())
-        net.SendToServer()
-        
-        LocalPlayer():PrintMessage(HUD_PRINTTALK, "Welcome to GP2! This message is temp.")
-        if gp2_remove_suit_on_spawn:GetBool() then
-            LocalPlayer():PrintMessage(HUD_PRINTTALK, "If you're missing suit set gp2_remove_suit_on_spawn to 0")
-        end
-    end )
 end

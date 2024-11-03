@@ -3,6 +3,8 @@
 -- Message (game_text)
 -- ----------------------------------------------------------------------------
 
+AddCSLuaFile()
+
 local PANEL = {}
 PANEL.BaseClass = baseclass.Get("GP2Panel")
 

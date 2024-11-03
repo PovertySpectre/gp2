@@ -3,6 +3,8 @@
 -- Base
 -- ----------------------------------------------------------------------------
 
+AddCSLuaFile()
+
 local PANEL = {}
 
 local cl_drawhud = GetConVar("cl_drawhud")

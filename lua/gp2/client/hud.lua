@@ -3,11 +3,21 @@
 -- Head-up-Display
 -- ----------------------------------------------------------------------------
 
-include("gp2/client/hudelements/base.lua")
+if CLIENT then
+    include("gp2/client/hudelements/base.lua")
+else
+    AddCSLuaFile("gp2/client/hudelements/base.lua")
+end
 
 for _, element in ipairs(file.Find("gp2/client/hudelements/hud_*.lua", "LUA")) do
-    include(string.format("gp2/client/hudelements/%s", element))
+    if CLIENT then
+        include(string.format("gp2/client/hudelements/%s", element))
+    else
+        AddCSLuaFile(string.format("gp2/client/hudelements/%s", element))
+    end
 end
+
+if SERVER then return end
 
 local renderlists = {}
 

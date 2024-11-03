@@ -26,6 +26,77 @@ SWEP.AutoSwitchTo = true
 SWEP.PrintName = "Portal Gun"
 SWEP.Category = "Portal 2"
 
+local function getSurfaceAngle(owner, norm)
+	local fwd = owner:GetAimVector()
+	local rgh = fwd:Cross(norm)
+	fwd:Set(norm:Cross(rgh))
+	return fwd:AngleEx(norm)
+end
+
+local gtCheck =
+{
+	["player"]          = true,
+	["prop_portal"] = true
+}
+
+local function seamlessCheck(e)
+	if(!IsValid(e)) then return end
+	return !gtCheck[e:GetClass()]
+end
+
+-- so the size is in source units (remember we are using sine/cosine)
+local function setPortalPlacement(owner, portal)
+	local ang = Angle() -- The portal angle
+	local siz = portal:GetSize()
+	local pos = owner:GetShootPos()
+	local aim = owner:GetAimVector()
+	local mul = siz[3] * 1.1
+
+	local tr = SeamlessPortals.TraceLine({
+		start  = pos,
+		endpos = pos + aim * 99999,
+		filter = seamlessCheck,
+        mask = MASK_SHOT_PORTAL
+	})
+
+	-- Align portals on 45 degree surfaces
+	if math.abs(tr.HitNormal:Dot(ang:Up())) < 0.71 then
+		ang:Set(tr.HitNormal:Angle())
+		ang:RotateAroundAxis(ang:Right(), -90)
+		ang:RotateAroundAxis(ang:Up(), 180)
+	else -- Place portals on any surface and angle
+		ang:Set(getSurfaceAngle(owner, tr.HitNormal))
+	end
+
+	-- Extrude portal from the ground
+	local af, au = ang:Forward(), ang:Right()
+	local angTab = {
+		 af * siz[1],
+		-af * siz[1],
+		 au * siz[2],
+		-au * siz[2]
+	}
+	for i = 1, 4 do
+		local extr = SeamlessPortals.TraceLine({
+			start  = tr.HitPos + tr.HitNormal,
+			endpos = tr.HitPos + tr.HitNormal - angTab[i],
+			filter = seamlessCheck,
+		})
+
+		if extr.Hit then
+			tr.HitPos = tr.HitPos + angTab[i] * (1 - extr.Fraction)
+		end
+	end
+
+	pos:Set(tr.HitNormal)
+	pos:Mul(mul)
+	pos:Add(tr.HitPos)
+
+	portal:SetPos(pos)
+	portal:SetAngles(ang)
+	if CPPI then portal:CPPISetOwner(owner) end
+end
+
 function SWEP:Initialize()
     self:SetDeploySpeed(1)
     self:SetHoldType("shotgun")
@@ -64,7 +135,7 @@ function SWEP:PrimaryAttack()
         self:GetOwner():ViewPunch(Angle(math.Rand(-1, -0.5), math.Rand(-1, 1), 0))
     end
 
-    self:PlacePortal(0)
+    self:DoLink("Portal1", "Portal2", Color(64, 160, 255))
 
     self:SetNextPrimaryFire(CurTime() + 0.5)
 	self:SetNextSecondaryFire(CurTime() + 0.5)
@@ -85,7 +156,7 @@ function SWEP:SecondaryAttack()
         self:GetOwner():ViewPunch(Angle(math.Rand(-1, -0.5), math.Rand(-1, 1), 0))
     end
 
-    self:PlacePortal(1)
+    self:DoLink("Portal2", "Portal1", Color(255, 160, 64))
 
     self:SetNextPrimaryFire(CurTime() + 0.5)
 	self:SetNextSecondaryFire(CurTime() + 0.5)
@@ -94,36 +165,34 @@ end
 function SWEP:Reload()
 end
 
-function SWEP:PlacePortal(type)
-    if self:GetOwner():IsPlayer() then
-		self:GetOwner():LagCompensation( true )
+function SWEP:DoSpawn(key)
+	if not key then return NULL end
+	local ent = self[key]
+	if !ent or !ent:IsValid() then
+		ent = ents.Create("prop_portal")
+		if !ent or !ent:IsValid() then return NULL end
+		ent:SetCreator(self:GetOwner())
+		ent:Spawn()
+		ent:SetSize(Vector(56, 32, 8))
+		ent:SetSides(50)
+		self[key] = ent
 	end
-    
-    local tr = self:GetOwner():GetEyeTrace()
+	return ent
+end
 
-    if self:GetOwner():IsPlayer() then
-		self:GetOwner():LagCompensation( false )
-	end
-    
-    local portal = ents.Create("prop_portal")
+function SWEP:ClearSpawn(base, link)
+	if base then SafeRemoveEntity(self[base]) end
+	if link then SafeRemoveEntity(self[link]) end
+end
 
-    local angles
-    local normal = tr.HitNormal
-    if math.abs(tr.HitNormal.z) > 0.5 then
-        angles = self.Owner:EyeAngles()
-        angles.p = 0
-        angles.y = angles.y - 180
-        angles.r = 0
-    else
-        angles = normal:Angle()
-        angles:RotateAroundAxis(angles:Right(), -90)
-    end
-
-    portal:SetType(type)
-    portal:Spawn()
-    portal:SetActivated(true)
-    portal:SetPos(tr.HitPos + tr.HitNormal * 0.1)  
-    portal:SetAngles(angles)
+function SWEP:DoLink(base, link, colr)
+	local ent = self:DoSpawn(base)
+	if !ent or !ent:IsValid() then self:ClearSpawn(base)
+		ErrorNoHalt("Failed linking seamless portal "..base.." > "..link.."!\n"); return end
+	ent:SetColor(colr)
+	ent:LinkPortal(self[link])
+	setPortalPlacement(self:GetOwner(), ent)
+	self:SetNextPrimaryFire(CurTime() + 0.25)
 end
 
 function SWEP:Think()
@@ -161,6 +230,23 @@ if SERVER then
     end
 end
 
+function SWEP:OnRemove()
+	self:ClearSpawn("Portal1", "Portal2")
+end
+
 function SWEP:ViewModelDrawn(vm)
     vm:RemoveEffects(EF_NODRAW)
 end
+
+function SWEP:Reload()
+	if CLIENT then return end
+	self:ClearSpawn("Portal1", "Portal2")
+
+    self:SendWeaponAnim(ACT_VM_FIZZLE)
+    self.NextIdleTime = CurTime() + 0.5
+end
+
+SeamlessPortals = SeamlessPortals or {}
+SeamlessPortals.SeamlessCheck = seamlessCheck
+SeamlessPortals.GetSurfaceAngle = getSurfaceAngle
+SeamlessPortals.SetPortalPlacement = setPortalPlacement
