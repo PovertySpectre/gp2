@@ -52,7 +52,7 @@ local function setPortalPlacement(owner, portal)
 	local aim = owner:GetAimVector()
 	local mul = siz[3] * 1.1
 
-	local tr = SeamlessPortals.TraceLine({
+	local tr = PortalManager.TraceLine({
 		start  = pos,
 		endpos = pos + aim * 99999,
 		filter = seamlessCheck,
@@ -77,7 +77,7 @@ local function setPortalPlacement(owner, portal)
 		-au * siz[2]
 	}
 	for i = 1, 4 do
-		local extr = SeamlessPortals.TraceLine({
+		local extr = PortalManager.TraceLine({
 			start  = tr.HitPos + tr.HitNormal,
 			endpos = tr.HitPos + tr.HitNormal - angTab[i],
 			filter = seamlessCheck,
@@ -135,7 +135,7 @@ function SWEP:PrimaryAttack()
         self:GetOwner():ViewPunch(Angle(math.Rand(-1, -0.5), math.Rand(-1, 1), 0))
     end
 
-    self:DoLink("Portal1", "Portal2", Color(64, 160, 255))
+    self:DoLink(PORTAL_TYPE_BLUE, PORTAL_TYPE_ORANGE, Color(64, 160, 255))
 
     self:SetNextPrimaryFire(CurTime() + 0.5)
 	self:SetNextSecondaryFire(CurTime() + 0.5)
@@ -156,7 +156,7 @@ function SWEP:SecondaryAttack()
         self:GetOwner():ViewPunch(Angle(math.Rand(-1, -0.5), math.Rand(-1, 1), 0))
     end
 
-    self:DoLink("Portal2", "Portal1", Color(255, 160, 64))
+    self:DoLink(PORTAL_TYPE_ORANGE, PORTAL_TYPE_BLUE, Color(255, 160, 64))
 
     self:SetNextPrimaryFire(CurTime() + 0.5)
 	self:SetNextSecondaryFire(CurTime() + 0.5)
@@ -172,17 +172,16 @@ function SWEP:DoSpawn(key)
 		ent = ents.Create("prop_portal")
 		if !ent or !ent:IsValid() then return NULL end
 		ent:SetCreator(self:GetOwner())
+        ent:SetType(key)
 		ent:Spawn()
-		ent:SetSize(Vector(56, 32, 8))
-		ent:SetSides(50)
 		self[key] = ent
-	end
+    end
+
+    ent:SetOpenTime(CurTime())
 	return ent
 end
 
-function SWEP:ClearSpawn(base, link)
-	if base then SafeRemoveEntity(self[base]) end
-	if link then SafeRemoveEntity(self[link]) end
+function SWEP:ClearSpawn()
 end
 
 function SWEP:DoLink(base, link, colr)
@@ -190,7 +189,13 @@ function SWEP:DoLink(base, link, colr)
 	if !ent or !ent:IsValid() then self:ClearSpawn(base)
 		ErrorNoHalt("Failed linking seamless portal "..base.." > "..link.."!\n"); return end
 	ent:SetColor(colr)
+    ent:SetType(base)
 	ent:LinkPortal(self[link])
+    
+    if IsValid(self[link]) then
+        self[link]:SetStaticTime(CurTime())
+    end
+
 	setPortalPlacement(self:GetOwner(), ent)
 	self:SetNextPrimaryFire(CurTime() + 0.25)
 end
@@ -240,13 +245,8 @@ end
 
 function SWEP:Reload()
 	if CLIENT then return end
-	self:ClearSpawn("Portal1", "Portal2")
+	self:ClearPortals()
 
     self:SendWeaponAnim(ACT_VM_FIZZLE)
     self.NextIdleTime = CurTime() + 0.5
 end
-
-SeamlessPortals = SeamlessPortals or {}
-SeamlessPortals.SeamlessCheck = seamlessCheck
-SeamlessPortals.GetSurfaceAngle = getSurfaceAngle
-SeamlessPortals.SetPortalPlacement = setPortalPlacement

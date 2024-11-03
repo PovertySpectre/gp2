@@ -26,11 +26,23 @@ GP2 = GP2 or {
     end,
 }
 
+PORTAL_TYPE_BLUE = 0
+PORTAL_TYPE_ORANGE = 1
+
+PORTAL_OPEN_DURATION = 0.5
+PORTAL_STATIC_DURATION = 1
+PORTAL_COLOR1 = Color(64,160,255)
+PORTAL_COLOR2 = Color(255,160,64)
+
+PORTAL_WIDTH = 64
+PORTAL_HEIGHT = 112
+
 include("gp2/utils.lua")
 include("gp2/netmessages.lua")
 include("gp2/soundmanager.lua")
 include("gp2/particles.lua")
 include("gp2/entityextensions.lua")
+include("gp2/portalmanager.lua")
 include("gp2/portaldetours.lua")
 include("gp2/portalmovement.lua")
 AddCSLuaFile("gp2/utils.lua")
@@ -38,8 +50,8 @@ AddCSLuaFile("gp2/netmessages.lua")
 AddCSLuaFile("gp2/soundmanager.lua")
 AddCSLuaFile("gp2/particles.lua")
 AddCSLuaFile("gp2/entityextensions.lua")
+AddCSLuaFile("gp2/portalmanager.lua")
 AddCSLuaFile("gp2/portaldetours.lua")
-AddCSLuaFile("gp2/portalmovement.lua")
 AddCSLuaFile("gp2/portalmovement.lua")
 AddCSLuaFile("gp2/paint.lua")
 AddCSLuaFile("gp2/client/hud.lua")

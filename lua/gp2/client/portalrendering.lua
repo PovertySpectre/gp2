@@ -4,6 +4,14 @@ AddCSLuaFile()
 
 if SERVER then return end
 
+PortalRendering = {}
+
+PortalRendering.PortalRTs = {}
+PortalRendering.PortalMaterials = {}
+
+-- max amount of portals being rendered at a time
+PortalRendering.MaxRTs = 6
+
 local sky_cvar = GetConVar("sv_skyname")
 local sky_name = ""
 local sky_materials = {}
@@ -14,6 +22,9 @@ local timesRendered = 0
 
 local skysize = 16384	--2^14, default zfar limit
 local angle_zero = Angle(0, 0, 0)
+
+local gp2_portal_drawdistance = CreateClientConVar("gp2_portal_drawdistance", "250", true, true, "Sets the multiplier of how far a portal should render", 0)
+local gp2_portal_refreshrate = CreateClientConVar("gp2_portal_refreshrate", "1", false, false, "How many frames to skip before rendering the next portal", 1)
 
 local renderViewTable = {
 	x = 0,
@@ -27,7 +38,7 @@ local renderViewTable = {
 
 -- sort the portals by distance since draw functions do not obey the z buffer
 timer.Create("seamless_portal_distance_fix", 0.25, 0, function()
-	if !SeamlessPortals or SeamlessPortals.PortalIndex < 1 then return end
+	if !PortalManager or PortalManager.PortalIndex < 1 then return end
 	portals = ents.FindByClass("prop_portal")
 	table.sort(portals, function(a, b) 
 		return a:GetPos():DistToSqr(EyePos()) < b:GetPos():DistToSqr(EyePos())
@@ -56,26 +67,26 @@ local render_PopCustomClipPlane = render.PopCustomClipPlane
 local render_RenderView = render.RenderView
 local render_EnableClipping = render.EnableClipping
 
-local skipConvar = CreateClientConVar("seamless_portal_refreshrate", "1", false, false, "How many frames to skip before rendering the next portal", 1)
+
 local skip = 0
 hook.Add("RenderScene", "seamless_portal_draw", function(eyePos, eyeAngles, fov)
-	if !SeamlessPortals or SeamlessPortals.PortalIndex < 1 then return end
-	skip = (skip + 1) % skipConvar:GetInt()
+	if PortalManager.PortalIndex < 1 then return end
+	skip = (skip + 1) % gp2_portal_refreshrate:GetInt()
 	if skip != 0 then return end
 
-	SeamlessPortals.Rendering = true
+	PortalRendering.Rendering = true
 	local oldHalo = halo.Add	-- black clipping plane fix
 	halo.Add = nofunc
-	local maxAm = SeamlessPortals.ToggleMirror() and 1 or 0
+	local maxAm = --[[PortalRendering.ToggleMirror() and 1 or]] 0
 
 	local render = render
 	for k, v in ipairs(portals) do
-		if timesRendered >= SeamlessPortals.MaxRTs - maxAm then break end
+		if timesRendered >= PortalRendering.MaxRTs - maxAm then break end
 		if !v:IsValid() or !v:GetExitPortal():IsValid() then continue end
 		
-		if timesRendered < SeamlessPortals.MaxRTs and SeamlessPortals.ShouldRender(v, eyePos, eyeAngles, SeamlessPortals.GetDrawDistance()) then
+		if timesRendered < PortalRendering.MaxRTs and PortalManager.ShouldRender(v, eyePos, eyeAngles, gp2_portal_drawdistance:GetFloat()) then
 			local exitPortal = v:GetExitPortal()
-			local editedPos, editedAng = SeamlessPortals.TransformPortal(v, exitPortal, eyePos, eyeAngles)
+			local editedPos, editedAng = PortalManager.TransformPortal(v, exitPortal, eyePos, eyeAngles)
 
 			renderViewTable.origin = editedPos
 			renderViewTable.angles = editedAng
@@ -91,7 +102,7 @@ hook.Add("RenderScene", "seamless_portal_draw", function(eyePos, eyeAngles, fov)
 			-- render the scene
 			local up = exitPortal:GetUp()
 			local oldClip = render.EnableClipping(true)
-			render_PushRenderTarget(SeamlessPortals.PortalRTs[timesRendered])
+			render_PushRenderTarget(PortalRendering.PortalRTs[timesRendered])
 			render_PushCustomClipPlane(up, up:Dot(exitPortal:GetPos()))
 			render_RenderView(renderViewTable)
 			render_PopCustomClipPlane()
@@ -101,13 +112,13 @@ hook.Add("RenderScene", "seamless_portal_draw", function(eyePos, eyeAngles, fov)
 	end
 
 	halo.Add = oldHalo
-	SeamlessPortals.Rendering = false
+	PortalRendering.Rendering = false
 	timesRendered = 0
 end)
 
 -- draw the player in renderview
 hook.Add("ShouldDrawLocalPlayer", "seamless_portal_drawplayer", function()
-	if SeamlessPortals.Rendering and !SeamlessPortals.DrawPlayerInView then 
+	if PortalRendering.Rendering and !PortalRendering.DrawPlayerInView then 
 		return true 
 	end
 end)
@@ -139,8 +150,12 @@ end
 
 hook.Add("PostDrawTranslucentRenderables", "seamless_portal_skybox", function()
 	//render.DrawWireframeBox(Vector(), Angle(), Vector(1, 1, 1) * -2^14, Vector(1, 1, 1) * 2^14, Color(0, 0, 255, 255))
-	if !SeamlessPortals.Rendering or util.IsSkyboxVisibleFromPoint(renderViewTable.origin) then return end
+	if !PortalRendering.Rendering or util.IsSkyboxVisibleFromPoint(renderViewTable.origin) then return end
 	render.OverrideDepthEnable(true, false)
 	drawsky(renderViewTable.origin, angle_zero, skysize, -skysize * 2, color_white, sky_materials)
 	render.OverrideDepthEnable(false , false)
 end)
+
+function PortalRendering.GetDrawDistance()
+	return gp2_portal_drawdistance:GetFloat()
+end

@@ -14,15 +14,15 @@ ENT.Instructions = ""
 ENT.Spawnable    = true
 
 local gbSvFlag = bit.bor(FCVAR_ARCHIVE)
--- create global table
-SeamlessPortals = SeamlessPortals or {}
-local varDrawDistance = CreateClientConVar("seamless_portal_drawdistance", "250", true, true, "Sets the multiplier of how far a portal should render", 0)
 
 function ENT:SetupDataTables()
 	self:NetworkVar("Entity", 0, "ExitPortal")
 	self:NetworkVar("Vector", 0, "SizeInternal")
 	self:NetworkVar("Bool", 0, "DisableBackface")
 	self:NetworkVar("Int", 0, "SidesInternal")
+	self:NetworkVar("Int", "Type")
+	self:NetworkVar("Float", "OpenTime")
+	self:NetworkVar("Float", "StaticTime")
 
 	if self:GetSidesInternal() < 1 then
 		self:SetSidesInternal(4)
@@ -93,48 +93,44 @@ if SERVER then
 	end
 end
 
-local size_mult = Vector(1, 1, 1)	// so the size is in source units (remember we are using sine/cosine)
 local function incrementPortal(ent)
 	if CLIENT then	-- singleplayer is weird... dont generate a physmesh if its singleplayer
 		if ent.UpdatePhysmesh then
 			ent:UpdatePhysmesh()
 		else
 			-- takes a minute to try and find the portal, if it cant, oh well...
-			timer.Create("seamless_portal_init" .. SeamlessPortals.PortalIndex, 1, 60, function()
+			timer.Create("seamless_portal_init" .. PortalManager.PortalIndex, 1, 60, function()
 				if !ent or !ent:IsValid() or !ent.UpdatePhysmesh then return end
 
 				ent:UpdatePhysmesh()
-				timer.Remove("seamless_portal_init" .. SeamlessPortals.PortalIndex)
+				timer.Remove("seamless_portal_init" .. PortalManager.PortalIndex)
 			end)
 		end
 
-		local size = ent:GetSize() * size_mult
+		local size = ent:GetSize()
 		ent:SetRenderBounds(-size, size)
 	end
-	SeamlessPortals.PortalIndex = SeamlessPortals.PortalIndex + 1
+	PortalManager.PortalIndex = PortalManager.PortalIndex + 1
 end
 
 function ENT:Initialize()
 	if SERVER then
+		self:SetOpenTime(CurTime())
 		self:SetModel("models/hunter/plates/plate2x2.mdl")
 		self:SetAngles(self:GetAngles() + Angle(90, 0, 0))
 		self:PhysicsInit(SOLID_VPHYSICS)
-		self:SetMoveType(MOVETYPE_VPHYSICS)
-		self:SetSolid(SOLID_VPHYSICS)
+		self:SetMoveType(MOVETYPE_NONE)
 		self:PhysWake()
 		self:SetRenderMode(RENDERMODE_TRANSCOLOR)
 		self:SetCollisionGroup(COLLISION_GROUP_WORLD)
 		self:DrawShadow(false)
 
-		if self:GetSize() == Vector() then
-			self:SetSize(Vector(50, 50, 8))
-		else
-			self:SetSize(self:GetSize())
-		end
+		self:SetSize(Vector(PORTAL_HEIGHT / 2, PORTAL_WIDTH / 2, 7))
 
-		SeamlessPortals.PortalIndex = SeamlessPortals.PortalIndex + 1
+		PortalManager.PortalIndex = PortalManager.PortalIndex + 1
 	end
-	SeamlessPortals.UpdateTraceline()
+	
+	PortalManager.UpdateTraceline()
 end
 
 function ENT:SpawnFunction(ply, tr)
@@ -160,77 +156,126 @@ function ENT:SpawnFunction(ply, tr)
 end
 
 function ENT:OnRemove()
-	SeamlessPortals.PortalIndex = math.Max(SeamlessPortals.PortalIndex - 1, 0)
+	PortalManager.PortalIndex = math.Max(PortalManager.PortalIndex - 1, 0)
 	if SERVER and self.PORTAL_REMOVE_EXIT then
 		SafeRemoveEntity(self:GetExitPortal())
 	end
 
-	SeamlessPortals.UpdateTraceline()
+	PortalManager.UpdateTraceline()
 end
 
 -- theres gonna be a bunch of magic numbers in this rendering code, since garry decided a hunterplate should be 47.9 rendering units wide and 51 physical units
 if CLIENT then
 	local drawMat = Material("models/dav0r/hoverball")
+	local stencilHole = Material("models/portals/portal_stencil_hole")
+	local PORTAL_OVERLAYS = {
+		Material("models/portals/portalstaticoverlay_1"),
+		Material("models/portals/portalstaticoverlay_2"),
+	}
+
+	local function getRenderMesh()
+		if not PortalRendering.PortalMeshes[4] then
+			PortalRendering.PortalMeshes[4] = {nil, Mesh()}
+
+			local invMeshTable = {}
+
+			local corners = {
+				Vector(-1, -1, -1),
+				Vector(1, -1, -1),
+				Vector(1, 1, -1),
+				Vector(-1, 1, -1)
+			}
+
+			local uv = {
+				Vector(0, 1),
+				Vector(1, 1),
+				Vector(1, 0),
+				Vector(0, 0)
+			}
+
+			for i = 1, 4 do	  
+				table.insert(invMeshTable, {pos = corners[i], u = uv[i].y, v = 1 - uv[i].x})
+				table.insert(invMeshTable, {pos = Vector(0, 0, -1), u = 0.5, v = 0.5})
+				table.insert(invMeshTable, {pos = corners[i % 4 + 1], u = uv[i % 4 + 1].y, v = 1 - uv[i % 4 + 1].x})
+			end
+
+			PortalRendering.PortalMeshes[4][2]:BuildFromTriangles(invMeshTable)
+		end
+
+		return PortalRendering.PortalMeshes[4][2]
+	end
+	
 	function ENT:Draw()
 		if halo.RenderedEntity() == self then return end
 		local render = render
 		local cam = cam
 		local size = self:GetSize()
+		local renderMesh = getRenderMesh()
 		-- render the outside frame
-		local portalSize = size * size_mult
 		local backface = self:GetDisableBackface()
-		if self.RENDER_MATRIX:GetTranslation() != self:GetPos() or self.RENDER_MATRIX:GetScale() != portalSize then
+		if self.RENDER_MATRIX:GetTranslation() != self:GetPos() or self.RENDER_MATRIX:GetScale() != size then
 			self.RENDER_MATRIX:Identity()
 			self.RENDER_MATRIX:SetTranslation(self:GetPos())
 			self.RENDER_MATRIX:SetAngles(self:GetAngles())
-			self.RENDER_MATRIX:SetScale(portalSize * 0.999)
+			self.RENDER_MATRIX:SetScale(size * 0.999)
 			
 			if self.RENDER_MATRIX_LOCAL then
 				self.RENDER_MATRIX_LOCAL:Identity()
 			else
 				self.RENDER_MATRIX_LOCAL = Matrix()
 			end
-			self.RENDER_MATRIX_LOCAL:SetScale(portalSize)
-
-			if not self.RENDER_MATRIX_FLAT then
-				self.RENDER_MATRIX_FLAT = Matrix()
-			end
+			self.RENDER_MATRIX_LOCAL:SetScale(size)
 			
-			self:SetRenderBounds(-portalSize, portalSize)
+			self:SetRenderBounds(-size, size)
 
-			portalSize[3] = 0
-			self.RENDER_MATRIX_FLAT:Set(self.RENDER_MATRIX)
-			self.RENDER_MATRIX_FLAT:SetScale(portalSize)	
+			size[3] = 0
 		end
 
-		-- draw inside of portal
-		if SeamlessPortals.Rendering or !IsValid(self:GetExitPortal()) or !SeamlessPortals.ShouldRender(self, EyePos(), EyeAngles(), SeamlessPortals.GetDrawDistance()) then
-			return 
+		-- No PortalOpenAmount proxy
+		-- because it uses mesh rather entity's model
+		local portalType = self:GetType() + 1
+		stencilHole:SetFloat("$portalopenamount", self:GetOpenAmount())
+		PORTAL_OVERLAYS[portalType]:SetFloat("$portalopenamount", self:GetOpenAmount())
+		
+		if IsValid(self:GetExitPortal()) then
+			PORTAL_OVERLAYS[portalType]:SetFloat("$portalstatic", self:GetStaticAmount())
+		else
+			PORTAL_OVERLAYS[portalType]:SetFloat("$portalstatic", 1)
 		end
 
-		-- do cursed stencil stuff
-		render.ClearStencil()
-		render.SetStencilEnable(true)
-		render.SetStencilWriteMask(1)
-		render.SetStencilTestMask(1)
-		render.SetStencilReferenceValue(1)
-		render.SetStencilFailOperation(STENCIL_KEEP)
-		render.SetStencilZFailOperation(STENCIL_KEEP)
-		render.SetStencilPassOperation(STENCIL_REPLACE)
-		render.SetStencilCompareFunction(STENCIL_ALWAYS)
-		render.SetMaterial(drawMat)
+		if not (PortalRendering.Rendering or not IsValid(self:GetExitPortal()) or not PortalManager.ShouldRender(self, EyePos(), EyeAngles(), PortalRendering.GetDrawDistance())) then
+			-- do cursed stencil stuff
+			render.ClearStencil()
+			render.SetStencilEnable(true)
+			render.SetStencilWriteMask(1)
+			render.SetStencilTestMask(1)
+			render.SetStencilReferenceValue(1)
+			render.SetStencilFailOperation(STENCIL_KEEP)
+			render.SetStencilZFailOperation(STENCIL_KEEP)
+			render.SetStencilPassOperation(STENCIL_REPLACE)
+			render.SetStencilCompareFunction(STENCIL_ALWAYS)
+			render.SetMaterial(stencilHole)
 
-		-- draw inside of portal
+			-- draw inside of portal
+			cam.PushModelMatrix(self.RENDER_MATRIX)
+				renderMesh:Draw()
+			cam.PopModelMatrix()
+
+			-- draw the actual portal texture
+			local portalmat = PortalRendering.PortalMaterials
+			render.SetMaterial(portalmat[self.PORTAL_RT_NUMBER or 1])
+			render.SetStencilCompareFunction(STENCIL_EQUAL)
+				render.DrawScreenQuadEx(0, 0, ScrW(), ScrH())
+			render.SetStencilEnable(false)
+
+			print('lol')
+		end
+
+		-- Render portal border
+		render.SetMaterial(PORTAL_OVERLAYS[portalType])
 		cam.PushModelMatrix(self.RENDER_MATRIX)
-			SeamlessPortals.GetRenderMesh(self:GetSidesInternal()):Draw()
+			renderMesh:Draw()
 		cam.PopModelMatrix()
-
-		-- draw the actual portal texture
-		local portalmat = SeamlessPortals.PortalMaterials
-		render.SetMaterial(portalmat[self.PORTAL_RT_NUMBER or 1])
-		render.SetStencilCompareFunction(STENCIL_EQUAL)
-		render.DrawScreenQuadEx(0, 0, ScrW(), ScrH())
-		render.SetStencilEnable(false)
 	end
 
 	-- hacky bullet fix
@@ -243,141 +288,50 @@ end
 
 -- scale the physmesh
 function ENT:UpdatePhysmesh()
-	self:PhysicsInit(6)
-	if self:GetPhysicsObject():IsValid() then
-		local finalMesh = {}
-		local size = self:GetSize()
-		local sides = self:GetSidesInternal()
-		local angleMul = 360 / sides
-		local degreeOffset = (sides * 90 + (sides % 4 != 0 and 0 or 45)) * (math.pi / 180)
-		for side = 1, sides do
-			local sidea = math.rad(side * angleMul) + degreeOffset
-			local sidex = math.sin(sidea)
-			local sidey = math.cos(sidea)
-			local side1 = Vector(sidex, sidey, -1)
-			local side2 = Vector(sidex, sidey,  0)
-			table.insert(finalMesh, side1 * size * size_mult)
-			table.insert(finalMesh, side2 * size * size_mult)
-		end
-		self:PhysicsInitConvex(finalMesh)
-		self:EnableCustomCollisions(true)
-		self:GetPhysicsObject():EnableMotion(false)
-		self:GetPhysicsObject():SetMaterial("glass")
-		self:GetPhysicsObject():SetMass(250)
-	else
-		self:PhysicsDestroy()
-		self:EnableCustomCollisions(false)
-		print("Failure to create a portal physics mesh " .. self:EntIndex())
-	end
+
 end
 
 function ENT:UpdateTransmitState()
 	return TRANSMIT_PVS
 end
 
-SeamlessPortals.PortalIndex = 0		-- the number of portals in the map
-SeamlessPortals.MaxRTs = 6			-- max amount of portals being rendered at a time
-SeamlessPortals.TransformPortal = function(a, b, pos, ang)
-	if !IsValid(a) or !IsValid(b) then return Vector(), Angle() end
-	local editedPos = Vector()
-	local editedAng = Angle()
-
-	if pos then
-		editedPos = a:WorldToLocal(pos) * (b:GetSize()[1] / a:GetSize()[1])
-		editedPos = b:LocalToWorld(Vector(editedPos[1], -editedPos[2], -editedPos[3]))
-		editedPos = editedPos + b:GetUp() * 0.01	// so you dont become trapped
-	end
-
-	if ang then
-		local localAng = a:WorldToLocalAngles(ang)
-		editedAng = b:LocalToWorldAngles(Angle(-localAng[1], -localAng[2], localAng[3] + 180))
-	end
-
-	-- mirror portal
-	if a == b then
-		if pos then
-			editedPos = a:LocalToWorld(a:WorldToLocal(pos) * Vector(1, 1, -1)) 
-		end
-
-		if ang then
-			local localAng = a:WorldToLocalAngles(ang)
-			editedAng = a:LocalToWorldAngles(Angle(-localAng[1], localAng[2], -localAng[3] + 180))
-		end
-	end
-
-	return editedPos, editedAng
+function ENT:OnPhysgunPickup(ply, ent)
+    return false
 end
 
-SeamlessPortals.UpdateTraceline = function()
-	if SeamlessPortals.PortalIndex > 0 then
-		util.TraceLine = SeamlessPortals.NewTraceLine	-- traceline that can go through portals
-	else
-		util.TraceLine = SeamlessPortals.TraceLine	-- original traceline
-	end
+function ENT:OnPhysgunDrop(ply, ent)
+    return false
 end
 
--- only render the portals that are in the frustum, or should be rendered
-SeamlessPortals.ShouldRender = function(portal, eyePos, eyeAngle, distance)
-  if portal:IsDormant() then return false end
-	local portalPos, portalUp, exitSize = portal:GetPos(), portal:GetUp(), portal:GetSize()
-	local max, eye = math.max(exitSize[1], exitSize[2]), (eyePos - portalPos)
-	-- (eyePos - portalPos):Dot(portalUp) > (-10 * max) -- true if behind the portal, false otherwise
-	-- eyePos:DistToSqr(portalPos) < distance^2 * max -- true if close enough
-	-- (eyePos - portalPos):Dot(eyeAngle:Forward()) < 50 * max -- true if looking at the portal, false otherwise
-	if(eye:Dot(portalUp) <= -exitSize[3]) then return false end -- First condition is not met so bail put
-	if(eye:LengthSqr() >= distance^2 * max) then return false end -- Second condition is not met so bail put
-	return (eye:Dot(eyeAngle:Forward()) < max) -- Decides the return value of the function
+function ENT:GetOpenAmount()
+	local currentTime = CurTime()
+	local elapsedTime = currentTime - self:GetOpenTime()
+	elapsedTime = math.min(elapsedTime, PORTAL_OPEN_DURATION)
+	local progress = elapsedTime / PORTAL_OPEN_DURATION
+	return progress
+end
+
+function ENT:GetStaticAmount()
+	local currentTime = CurTime()
+	local elapsedTime = currentTime - self:GetStaticTime()
+	elapsedTime = math.min(elapsedTime, PORTAL_STATIC_DURATION)
+	local progress = elapsedTime / PORTAL_STATIC_DURATION
+	return 1 - progress
 end
 
 -- set physmesh pos on client
 if CLIENT then
-	SeamlessPortals.GetDrawDistance = function()
-		return varDrawDistance:GetFloat()
-	end
-
 	-- this code creates the rendertargets to be used for the portals
-	SeamlessPortals.PortalRTs = {}
-	SeamlessPortals.PortalMaterials = {}
-
-	for i = 1, SeamlessPortals.MaxRTs do
-		SeamlessPortals.PortalRTs[i] = GetRenderTarget("SeamlessPortal" .. i, ScrW(), ScrH())
-		SeamlessPortals.PortalMaterials[i] = CreateMaterial("SeamlessPortalsMaterial" .. i, "GMODScreenspace", {
-			["$basetexture"] = SeamlessPortals.PortalRTs[i]:GetName(),
+	for i = 1, PortalRendering.MaxRTs do
+		PortalRendering.PortalRTs[i] = GetRenderTarget("_rt_portal" .. i, ScrW(), ScrH())
+		PortalRendering.PortalMaterials[i] = CreateMaterial("PortalMaterial" .. i, "GMODScreenspace", {
+			["$basetexture"] = PortalRendering.PortalRTs[i]:GetName(),
 			["$model"] = "1"
 		})
 	end
 
 	-- Create square mesh used for the portals
-	SeamlessPortals.PortalMeshes = {}
-	SeamlessPortals.GetRenderMesh = function()
-		if not SeamlessPortals.PortalMeshes[4] then
-		  SeamlessPortals.PortalMeshes[4] = {nil, Mesh()}
-	  
-		  local invMeshTable = {}
-	  
-		  local corners = {
-			Vector(-1, -1, -1),
-			Vector(1, -1, -1),
-			Vector(1, 1, -1),
-			Vector(-1, 1, -1)
-		  }
-	  
-		  for i = 1, 4 do
-			local nextIndex = i % 4 + 1
-			local currentCorner = corners[i]
-			local nextCorner = corners[nextIndex]
-	  
-			-- Back face (inverted)
-			table.insert(invMeshTable, {pos = currentCorner, u = 0, v = 0})
-			table.insert(invMeshTable, {pos = Vector(0, 0, -1), u = 0.5, v = 1})
-			table.insert(invMeshTable, {pos = nextCorner, u = 1, v = 0})
-		  end
-	  
-		  SeamlessPortals.PortalMeshes[4][2]:BuildFromTriangles(invMeshTable)
-		end
-	  
-		return SeamlessPortals.PortalMeshes[4][2]
-	  end
+	PortalRendering.PortalMeshes = {}
 
 	function ENT:Think()
 		local phys = self:GetPhysicsObject()
@@ -399,43 +353,4 @@ if CLIENT then
 			end)
 		end
 	end)
-
-	--funny flipped scene
-	local rendering = false
-	local mirrored = false
-	function SeamlessPortals.ToggleMirror(enable)
-		if enable == nil then return mirrored end -- 2024 mee here: what the fuck is this
-		mirrored = enable 
-
-		if (!enable) then
-			hook.Remove("PreDrawViewModels", "FlippedWorld")
-			hook.Remove("InputMouseApply", "FlippedWorld")
-			hook.Remove("CreateMove", "FlippedWorld")
-
-			return mirrored
-		end
-	
-		hook.Add("PreDrawViewModels", "FlippedWorld", function(_, sky, sky3d)
-			render.UpdateScreenEffectTexture()
-			render.DrawTextureToScreenRect(render.GetScreenEffectTexture(), ScrW(), 0, -ScrW(), ScrH())
-
-			if LocalPlayer():Health() <= 0 then
-				SeamlessPortals.ToggleMirror(false)
-			end
-		end)
-	
-		-- invert mouse x
-		hook.Add("InputMouseApply", "FlippedWorld", function(cmd, x, y, ang)
-			cmd:SetViewAngles(ang + Angle(0, x / 22.5, 0))
-		end)
-	
-		-- invert movement x
-		hook.Add("CreateMove", "FlippedWorld", function(cmd)
-			cmd:SetSideMove(-cmd:GetSideMove())
-		end)
-
-		return mirrored
-	end
-	
-	SeamlessPortals.ToggleMirror(false)
 end

@@ -3,7 +3,7 @@
 
 local allEnts
 timer.Create("portals_ent_update", 0.25, 0, function()
-    if !SeamlessPortals or SeamlessPortals.PortalIndex < 1 then return end
+    if !PortalManager or PortalManager.PortalIndex < 1 then return end
     local portals = ents.FindByClass("prop_portal")
     allEnts = ents.GetAll()
 
@@ -57,7 +57,7 @@ end
 local seamless_table = {["prop_portal"] = true}
 local seamless_check = function(e) return seamless_table[e:GetClass()] end    -- for traces
 hook.Add("Tick", "seamless_portal_teleport", function()
-    if !SeamlessPortals or SeamlessPortals.PortalIndex < 1 or !allEnts then return end
+    if !PortalManager or PortalManager.PortalIndex < 1 or !allEnts then return end
     for _, prop in ipairs(allEnts) do
         if !prop or !prop:IsValid() then continue end
         if prop:IsPlayerHolding() then continue end
@@ -82,8 +82,8 @@ hook.Add("Tick", "seamless_portal_teleport", function()
         if hitPortalExit and hitPortalExit:IsValid() and obbMax[1] < hitPortal:GetSize()[1] * 2 and obbMax[2] < hitPortal:GetSize()[2] * 2 and prop:GetVelocity():Dot(hitPortal:GetUp()) < -0.5 then
             local constrained = constraint.GetAllConstrainedEntities(prop)
             for k, constrainedProp in pairs(constrained) do
-                local editedPos, editedPropAng = SeamlessPortals.TransformPortal(hitPortal, hitPortalExit, constrainedProp:GetPos(), constrainedProp:GetAngles())
-                local _, editedVel = SeamlessPortals.TransformPortal(hitPortal, hitPortalExit, nil, constrainedProp:GetVelocity():Angle())
+                local editedPos, editedPropAng = PortalManager.TransformPortal(hitPortal, hitPortalExit, constrainedProp:GetPos(), constrainedProp:GetAngles())
+                local _, editedVel = PortalManager.TransformPortal(hitPortal, hitPortalExit, nil, constrainedProp:GetVelocity():Angle())
                 local max = math.Max(constrainedProp:GetVelocity():Length(), hitPortalExit:GetUp():Dot(-physenv.GetGravity() / 3))
                 constrainedProp:ForcePlayerDrop()
                 unfucked_setpos(constrainedProp, editedPos, editedPropAng, editedVel:Forward() * max)
