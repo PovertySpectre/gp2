@@ -20,7 +20,7 @@ timer.Create("portals_ent_update", 0.25, 0, function()
         for k, portal in ipairs(portals) do
             if !portal:IsValid() then continue end
             local dist = realPos:DistToSqr(portal:GetPos())
-            if (dist < closestPortalDist or k == 1) and portal:GetExitPortal() and portal:GetExitPortal():IsValid() then
+            if (dist < closestPortalDist or k == 1) and portal:GetLinkedPartner() and portal:GetLinkedPartner():IsValid() then
                 closestPortalDist = dist
                 closestPortal = portal
             end
@@ -78,7 +78,7 @@ hook.Add("Tick", "seamless_portal_teleport", function()
         if !tr.Hit then continue end
         local hitPortal = tr.Entity
         if hitPortal:GetClass() != "prop_portal" then return end
-        local hitPortalExit = tr.Entity:GetExitPortal()
+        local hitPortalExit = tr.Entity:GetLinkedPartner()
         if hitPortalExit and hitPortalExit:IsValid() and obbMax[1] < hitPortal:GetSize()[1] * 2 and obbMax[2] < hitPortal:GetSize()[2] * 2 and prop:GetVelocity():Dot(hitPortal:GetUp()) < -0.5 then
             local constrained = constraint.GetAllConstrainedEntities(prop)
             for k, constrainedProp in pairs(constrained) do

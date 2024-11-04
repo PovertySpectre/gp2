@@ -7,7 +7,7 @@ AddCSLuaFile()
 SWEP.Slot = 0
 SWEP.SlotPos = 2
 SWEP.DrawAmmo = false
-SWEP.DrawCrosshair = true
+SWEP.DrawCrosshair = false
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_portalgun.mdl"
@@ -25,6 +25,18 @@ SWEP.AutoSwitchTo = true
 
 SWEP.PrintName = "Portal Gun"
 SWEP.Category = "Portal 2"
+
+if SERVER then
+	concommand.Add("upgrade_portalgun", function( ply, cmd, args )
+		ply:Give("weapon_portalgun")
+		
+		for _, weapon in ipairs(ply:GetWeapons()) do
+			if weapon:GetClass() == "weapon_portalgun" then
+				weapon:UpdatePortalGun()
+			end
+		end
+	end )
+end
 
 local function getSurfaceAngle(owner, norm)
 	local fwd = owner:GetAimVector()
@@ -76,6 +88,7 @@ local function setPortalPlacement(owner, portal)
 		 au * siz[2],
 		-au * siz[2]
 	}
+	
 	for i = 1, 4 do
 		local extr = PortalManager.TraceLine({
 			start  = tr.HitPos + tr.HitNormal,
@@ -108,20 +121,35 @@ end
 
 function SWEP:SetupDataTables()
     self:NetworkVar("Bool", "IsPotatoGun")
+    self:NetworkVar("Bool", "CanFirePortal1")
+    self:NetworkVar("Bool", "CanFirePortal2")
+    self:NetworkVar("Int", "LinkageGroup")
+
+	if SERVER then
+		self:SetCanFirePortal1(true) -- default only portal 1
+	end
 end
 
 function SWEP:Deploy()
+	if CLIENT then return end
+	
+	if not self.GotCustomLinkageGroup then
+		self:SetLinkageGroup(self:GetOwner():EntIndex() - 1)
+	end
+
     if self:GetIsPotatoGun() then
         self:SendWeaponAnim(ACT_VM_DEPLOY)
         self:GetOwner():GetViewModel(0):SetBodygroup(1, 1)
         self:SetBodygroup(1, 1)
     end
+	
 
     return true
 end
 
 function SWEP:PrimaryAttack()
     if not SERVER then return end
+	if not self:GetCanFirePortal1() then return end
 
     if not self:CanPrimaryAttack() then return end
     self:GetOwner():EmitSound("Weapon_Portalgun.fire_blue")
@@ -135,7 +163,7 @@ function SWEP:PrimaryAttack()
         self:GetOwner():ViewPunch(Angle(math.Rand(-1, -0.5), math.Rand(-1, 1), 0))
     end
 
-    self:DoLink(PORTAL_TYPE_BLUE, PORTAL_TYPE_ORANGE, Color(64, 160, 255))
+    self:PlacePortal(PORTAL_TYPE_BLUE)
 
     self:SetNextPrimaryFire(CurTime() + 0.5)
 	self:SetNextSecondaryFire(CurTime() + 0.5)
@@ -143,6 +171,7 @@ end
 
 function SWEP:SecondaryAttack()
     if not SERVER then return end
+	if not self:GetCanFirePortal2() then return end
 
     if not self:CanPrimaryAttack() then return end
     self:GetOwner():EmitSound("Weapon_Portalgun.fire_red")
@@ -156,7 +185,7 @@ function SWEP:SecondaryAttack()
         self:GetOwner():ViewPunch(Angle(math.Rand(-1, -0.5), math.Rand(-1, 1), 0))
     end
 
-    self:DoLink(PORTAL_TYPE_ORANGE, PORTAL_TYPE_BLUE, Color(255, 160, 64))
+    self:PlacePortal(PORTAL_TYPE_ORANGE)
 
     self:SetNextPrimaryFire(CurTime() + 0.5)
 	self:SetNextSecondaryFire(CurTime() + 0.5)
@@ -165,39 +194,18 @@ end
 function SWEP:Reload()
 end
 
-function SWEP:DoSpawn(key)
-	if not key then return NULL end
-	local ent = self[key]
-	if !ent or !ent:IsValid() then
-		ent = ents.Create("prop_portal")
-		if !ent or !ent:IsValid() then return NULL end
-		ent:SetCreator(self:GetOwner())
-        ent:SetType(key)
-		ent:Spawn()
-		self[key] = ent
-    end
-
-    ent:SetOpenTime(CurTime())
-	return ent
-end
-
 function SWEP:ClearSpawn()
 end
 
-function SWEP:DoLink(base, link, colr)
-	local ent = self:DoSpawn(base)
-	if !ent or !ent:IsValid() then self:ClearSpawn(base)
-		ErrorNoHalt("Failed linking seamless portal "..base.." > "..link.."!\n"); return end
-	ent:SetColor(colr)
-    ent:SetType(base)
-	ent:LinkPortal(self[link])
-    
-    if IsValid(self[link]) then
-        self[link]:SetStaticTime(CurTime())
-    end
+function SWEP:PlacePortal(type)
+	local portal = ents.Create("prop_portal")
+	if not IsValid(portal) then return end
 
-	setPortalPlacement(self:GetOwner(), ent)
-	self:SetNextPrimaryFire(CurTime() + 0.25)
+	portal:SetType(type or 0)
+	portal:SetLinkageGroup(self:GetLinkageGroup())
+	portal:SetActivated(true)
+	portal:Spawn()
+	setPortalPlacement(self:GetOwner(), portal)
 end
 
 function SWEP:Think()
@@ -220,23 +228,48 @@ function SWEP:Think()
 end
 
 if SERVER then
+	function SWEP:UpdatePortalGun()
+		self:SetCanFirePortal1(true)
+		self:SetCanFirePortal2(true)
+	end
+
     function SWEP:UpdatePotatoGun(into)
-        self:SendWeaponAnim(ACT_VM_DRAW)
-        self.NextIdleTime = CurTime() + 5
-        if into then
-            self:GetOwner():GetViewModel(0):SetBodygroup(1, 1)
-            self:SetBodygroup(1, 1)
-            self:SetIsPotatoGun(true)
-        else
-            self:GetOwner():GetViewModel(0):SetBodygroup(1, 0)
-            self:SetBodygroup(1, 0)
-            self:SetIsPotatoGun(false)
-        end
+		self:SetCanFirePortal1(true)
+		self:SetCanFirePortal2(true)
+
+        self:SendWeaponAnim(ACT_VM_HOLSTER)
+
+		timer.Simple(2, function()
+			self:SendWeaponAnim(ACT_VM_DRAW)
+			if into then
+				self:GetOwner():GetViewModel(0):SetBodygroup(1, 1)
+				self:SetBodygroup(1, 1)
+				self:SetIsPotatoGun(true)
+			else
+				self:GetOwner():GetViewModel(0):SetBodygroup(1, 0)
+				self:SetBodygroup(1, 0)
+				self:SetIsPotatoGun(false)
+			end
+		end)
+
+		self.NextIdleTime = CurTime() + 5
     end
 end
 
 function SWEP:OnRemove()
-	self:ClearSpawn("Portal1", "Portal2")
+end
+
+function SWEP:ClearPortals()
+	local portal1 = PortalManager.LinkageGroups[self:GetLinkageGroup()][PORTAL_TYPE_BLUE]
+	local portal2 = PortalManager.LinkageGroups[self:GetLinkageGroup()][PORTAL_TYPE_ORANGE]
+
+	if IsValid(portal1) and self:GetCanFirePortal1() then
+		portal1:Remove()
+	end
+
+	if IsValid(portal2) and self:GetCanFirePortal2() then
+		portal2:Remove()
+	end	
 end
 
 function SWEP:ViewModelDrawn(vm)
@@ -245,6 +278,14 @@ end
 
 function SWEP:Reload()
 	if CLIENT then return end
+
+	local portal1 = PortalManager.LinkageGroups[self:GetLinkageGroup()][PORTAL_TYPE_BLUE]
+	local portal2 = PortalManager.LinkageGroups[self:GetLinkageGroup()][PORTAL_TYPE_ORANGE]
+
+	if not (IsValid(portal1) or IsValid(portal2)) then
+		return
+	end
+
 	self:ClearPortals()
 
     self:SendWeaponAnim(ACT_VM_FIZZLE)

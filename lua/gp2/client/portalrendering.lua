@@ -82,11 +82,11 @@ hook.Add("RenderScene", "seamless_portal_draw", function(eyePos, eyeAngles, fov)
 	local render = render
 	for k, v in ipairs(portals) do
 		if timesRendered >= PortalRendering.MaxRTs - maxAm then break end
-		if !v:IsValid() or !v:GetExitPortal():IsValid() then continue end
+		if !v:IsValid() or !v:GetLinkedPartner():IsValid() then continue end
 		
 		if timesRendered < PortalRendering.MaxRTs and PortalManager.ShouldRender(v, eyePos, eyeAngles, gp2_portal_drawdistance:GetFloat()) then
-			local exitPortal = v:GetExitPortal()
-			local editedPos, editedAng = PortalManager.TransformPortal(v, exitPortal, eyePos, eyeAngles)
+			local linkedPartner = v:GetLinkedPartner()
+			local editedPos, editedAng = PortalManager.TransformPortal(v, linkedPartner, eyePos, eyeAngles)
 
 			renderViewTable.origin = editedPos
 			renderViewTable.angles = editedAng
@@ -100,10 +100,10 @@ hook.Add("RenderScene", "seamless_portal_draw", function(eyePos, eyeAngles, fov)
 			v.PORTAL_RT_NUMBER = timesRendered	-- the number index of the rendertarget it will use in rendering
 
 			-- render the scene
-			local up = exitPortal:GetUp()
+			local up = linkedPartner:GetUp()
 			local oldClip = render.EnableClipping(true)
 			render_PushRenderTarget(PortalRendering.PortalRTs[timesRendered])
-			render_PushCustomClipPlane(up, up:Dot(exitPortal:GetPos()))
+			render_PushCustomClipPlane(up, up:Dot(linkedPartner:GetPos()))
 			render_RenderView(renderViewTable)
 			render_PopCustomClipPlane()
 			render_EnableClipping(oldClip)

@@ -5,6 +5,43 @@ PortalManager = {}
 -- the number of portals in the map
 PortalManager.PortalIndex = 0
 
+PortalManager.LinkageGroups = {
+	[0] = { NULL, NULL },
+}
+
+function PortalManager.SetPortal(linkageGroup, entity)
+	if not IsValid(entity) or entity:GetClass() ~= "prop_portal" then
+		return
+	end
+
+	if PortalManager.LinkageGroups[linkageGroup] == nil then
+		PortalManager.LinkageGroups[linkageGroup] = { NULL, NULL }
+	end
+
+	local portalType = entity:GetType()
+	local oppositePortalType = entity:GetType() == PORTAL_TYPE_BLUE and PORTAL_TYPE_ORANGE or PORTAL_TYPE_BLUE
+	local portal = PortalManager.LinkageGroups[linkageGroup][portalType]
+	local oppositePortal = PortalManager.LinkageGroups[linkageGroup][oppositePortalType]
+
+	print(PortalManager.LinkageGroups[linkageGroup][PORTAL_TYPE_ORANGE])
+	
+	GP2.Print("Setting portal for linkageGroup == " .. linkageGroup .. " to " .. tostring(entity) .. " (type " .. portalType .. ")")
+
+	if IsValid(portal) and portal ~= entity then
+		if SERVER then
+			portal:Remove()
+		end
+	end
+
+	if IsValid(oppositePortal) then
+		entity:SetLinkedPartner(oppositePortal)
+	end
+
+	if entity:GetActivated() then
+		PortalManager.LinkageGroups[linkageGroup][portalType] = entity
+	end
+end
+
 function PortalManager.TransformPortal(a, b, pos, ang)
 	if !IsValid(a) or !IsValid(b) then return Vector(), Angle() end
 	local editedPos = Vector()
@@ -48,11 +85,11 @@ PortalManager.TraceLine = util.TraceLine
 function PortalManager.TraceLinePortal(data)
 	local tr = PortalManager.TraceLine(data)
 	if tr.Entity:IsValid() then
-		if tr.Entity:GetClass() == "prop_portal" and IsValid(tr.Entity:GetExitPortal()) then
+		if tr.Entity:GetClass() == "prop_portal" and IsValid(tr.Entity:GetLinkedPartner()) then
 			local hitPortal = tr.Entity
 			if tr.HitNormal:Dot(hitPortal:GetUp()) > 0.9 then
 				local editeddata = table.Copy(data)
-				local exitportal = hitPortal:GetExitPortal()
+				local exitportal = hitPortal:GetLinkedPartner()
 				editeddata.start = PortalManager.TransformPortal(hitPortal, exitportal, tr.HitPos)
 				editeddata.endpos = PortalManager.TransformPortal(hitPortal, exitportal, data.endpos)
 				-- filter the exit portal from being hit by the ray
@@ -65,7 +102,7 @@ function PortalManager.TraceLinePortal(data)
 						editeddata.filter = exitportal
 					end
 				end
-				return PortalManager.TraceLine(editeddata)
+				return PortalManager.TraceLinePortal(editeddata)
 			end
 		end
 		if data["WorldDetour"] then tr.Entity = game.GetWorld() end

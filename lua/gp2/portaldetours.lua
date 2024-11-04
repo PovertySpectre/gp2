@@ -8,7 +8,7 @@ hook.Add("EntityFireBullets", "seamless_portal_detour_bullet", function(entity, 
 	local hitPortal = tr.Entity
 	if !hitPortal:IsValid() then return end
 	if hitPortal:GetClass() != "prop_portal" then return end
-	local exitportal = hitPortal:GetExitPortal()
+	local exitportal = hitPortal:GetLinkedPartner()
 	if !IsValid(exitportal) then return end
 	if (tr.HitPos - hitPortal:GetPos()):Dot(hitPortal:GetUp()) > 0 then
 		local newPos, newAng = PortalManager.TransformPortal(hitPortal, exitportal, tr.HitPos, data.Dir:Angle())
@@ -36,10 +36,10 @@ util.Effect = effect
 if SERVER then return end
 
 -- sound detour
-hook.Add("EntityEmitSound", "seamless_portals_detour_sound", function(t)
+hook.Add("EntityEmitSound", "GP2::PortalDetourSound", function(t)
 	if !PortalManager or PortalManager.PortalIndex < 1 then return end
 	for k, v in ipairs(ents.FindByClass("prop_portal")) do
-		local exitportal = v:GetExitPortal()
+		local exitportal = v:GetLinkedPartner()
 		if !v.ExitPortal or !exitportal or !exitportal:IsValid() or !exitportal.GetExitSize then continue end
 		if !t.Pos or !t.Entity or t.Entity == NULL then continue end
 		if t.Pos:DistToSqr(v:GetPos()) < 50000 * exitportal:GetExitSize()[1] and (t.Pos - v:GetPos()):Dot(v:GetUp()) > 0 then

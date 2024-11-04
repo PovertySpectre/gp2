@@ -237,7 +237,8 @@ local function CreateHudElements()
     
     -- Create elements here
     hudElements = {
-        vgui.Create("GP2HudMessage")
+        vgui.Create("GP2HudMessage"),
+        vgui.Create("GP2HudQuickinfoPortal")
     }
 end
 

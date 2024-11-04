@@ -22,7 +22,9 @@ local function updateCalcViews(finalPos, finalVel)
 	
 	local addAngle = 1
 	finalPos = finalPos - finalVel * FrameTime()	-- why does this work? idk but it feels nice, could be a source prediction thing
-	hook.Add("CalcView", "seamless_portals_fix", function(ply, origin, angle)
+	hook.Add("CalcView", "GP2::PortalFix", function(ply, origin, angle)
+		if ply:GetViewEntity() ~= ply then return end
+
 		if ply:EyePos():DistToSqr(origin) > 10000 then return end
 		addAngle = addAngle * 0.9
 		angle.r = angle.r * addAngle
@@ -40,7 +42,8 @@ local function updateCalcViews(finalPos, finalVel)
 	end)
 
     -- weapons sometimes glitch out a bit when you teleport, since the weapon angle is wrong
-	hook.Add("CalcViewModelView", "seamless_portals_fix", function(wep, vm, oldPos, oldAng, pos, ang)
+	hook.Add("CalcViewModelView", "GP2::PortalFix", function(wep, vm, oldPos, oldAng, pos, ang)
+		
 		ang.r = ang.r * addAngle
 		return finalPos, ang
 	end)
@@ -50,8 +53,8 @@ local function updateCalcViews(finalPos, finalVel)
 		local ang = LocalPlayer():EyeAngles()
 		ang.r = 0
 		LocalPlayer():SetEyeAngles(ang)
-		hook.Remove("CalcView", "seamless_portals_fix")
-		hook.Remove("CalcViewModelView", "seamless_portals_fix")
+		hook.Remove("CalcView", "GP2::PortalFix")
+		hook.Remove("CalcViewModelView", "GP2::PortalFix")
 	end)
 end
 
@@ -110,7 +113,7 @@ local function editPlayerCollision(mv, ply, t)
 	-- getting this to work on the ground was a FUCKING headache
 	if !ply.PORTAL_STUCK_OFFSET and tr.Hit and
 	   tr.Entity:GetClass() == "prop_portal" and
-	   tr.Entity.GetExitPortal and IsValid(tr.Entity:GetExitPortal())
+	   tr.Entity.GetLinkedPartner and IsValid(tr.Entity:GetLinkedPartner())
 	then
 		local dotUp = tr.Entity:GetUp():Dot(Vector(0, 0, 1))
 		local secondaryOffset = 0
@@ -168,17 +171,17 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 	//PrintTable(tr)
 	if !tr.Hit then return end
 	local hitPortal = tr.Entity
-	if hitPortal:GetClass() == "prop_portal" and hitPortal.GetExitPortal and
-	   IsValid(hitPortal:GetExitPortal()) and plyVel:Dot(hitPortal:GetUp()) < 0
+	if hitPortal:GetClass() == "prop_portal" and hitPortal.GetLinkedPartner and
+	   IsValid(hitPortal:GetLinkedPartner()) and plyVel:Dot(hitPortal:GetUp()) < 0 and hitPortal:GetActivated()
 	then
 		if ply.PORTAL_TELEPORTING then return end
 		freezePly = true
 
 		-- wow look at all of this code just to teleport the player
-		local exitPortal = hitPortal:GetExitPortal()
-		local editedPos, editedAng = PortalManager.TransformPortal(hitPortal, exitPortal, tr.HitPos, ply:EyeAngles())
-		local _, editedVelocity = PortalManager.TransformPortal(hitPortal, exitPortal, nil, plyVel:Angle())
-		local max = math.Max(plyVel:Length(), exitPortal:GetUp():Dot(-physenv.GetGravity() / 3))
+		local linkedPartner = hitPortal:GetLinkedPartner()
+		local editedPos, editedAng = PortalManager.TransformPortal(hitPortal, linkedPartner, tr.HitPos, ply:EyeAngles())
+		local _, editedVelocity = PortalManager.TransformPortal(hitPortal, linkedPartner, nil, plyVel:Angle())
+		local max = math.Max(plyVel:Length(), linkedPartner:GetUp():Dot(-physenv.GetGravity() / 3))
 
 		--ground can fluxuate depending on how the user places the portals, so we need to make sure we're not going to teleport into the ground
 		local eyeHeight = (ply:EyePos() - ply:GetPos())
@@ -195,7 +198,7 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 			offset = tr.HitPos - finalPos
 		end
 
-		local exitSize = (exitPortal:GetSize()[1] / hitPortal:GetSize()[1])
+		local exitSize = (linkedPartner:GetSize()[1] / hitPortal:GetSize()[1])
 		if ply.SCALE_MULTIPLIER then
 			if ply.SCALE_MULTIPLIER * exitSize != ply.SCALE_MULTIPLIER then
 				ply.SCALE_MULTIPLIER = math.Clamp(ply.SCALE_MULTIPLIER * exitSize, 0.01, 10)
@@ -227,25 +230,25 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 			mv:SetOrigin(finalPos)
 			
 			net.Start("PORTALS_FREEZE")
-			net.WriteBool(hitPortal == exitPortal)
+			net.WriteBool(hitPortal == linkedPartner)
 			net.Send(ply)
 
 			hitPortal:TriggerOutput("OnTeleportFrom", ply)
-			exitPortal:TriggerOutput("OnTeleportTo", ply)
+			linkedPartner:TriggerOutput("OnTeleportTo", ply)
 		else
 			updateCalcViews(finalPos + eyeHeight, editedVelocity:Forward() * max * exitSize, (ply.SCALE_MULTIPLIER or 1) * exitSize)	--fix viewmodel lerping for a tiny bit
 			ply:SetEyeAngles(editedAng)
 			ply:SetPos(finalPos)
 
 			-- mirror dimension
-			if exitPortal == hitPortal then
+			if linkedPartner == hitPortal then
 				--PortalRendering.ToggleMirror(!PortalRendering.ToggleMirror())
 			end
 		end
 
 		-- if they come out of a ground portal make the player hitbox tiny
 		ply.PORTAL_TELEPORTING = true
-		ply.PORTAL_STUCK_OFFSET = exitPortal:GetUp():Dot(Vector(0, 0, 1)) > 0.999 and 72 or 0
+		ply.PORTAL_STUCK_OFFSET = linkedPartner:GetUp():Dot(Vector(0, 0, 1)) > 0.999 and 72 or 0
 		ply:SetHull(Vector(-4, -4, ply.PORTAL_STUCK_OFFSET), Vector(4, 4, 72 + ply.PORTAL_STUCK_OFFSET * 0.5))
 		ply:SetHullDuck(Vector(-4, -4, ply.PORTAL_STUCK_OFFSET), Vector(4, 4, 36 + ply.PORTAL_STUCK_OFFSET * 0.5))
 

@@ -20,6 +20,7 @@ local TARGETABLE_ENTS = {
     ["point_laser_target"] = true,
     ["prop_weighted_cube"] = true,
     ["prop_laser_catcher"] = true,
+    ["prop_portal"] = true,
 }
 
 local ENT_ATTACHMENTS = {
@@ -189,7 +190,7 @@ function ENT:DoLaser(child)
         filter = function(ent)
             return not (ent == self or ent == child or ent:IsPlayer() or ent == self:GetParent() or ent.IsLaserCatcher or ent.IsLaserTarget)
         end,
-        mask = MASK_OPAQUE_AND_NPCS,
+        mask = MASK_OPAQUE_AND_NPCS
     })
     
     local hitent = tr.Entity

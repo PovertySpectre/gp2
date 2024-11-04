@@ -257,6 +257,12 @@ function OnPostPlayerSpawn(ply)
             end)
         end
 
+        if i >= mapWithDualGunIndex and level == map then
+            timer.Simple(0, function()
+                ply:GetActiveWeapon():UpdatePortalGun()
+            end)
+        end
+
         if i >= mapWithGunPotatoGun and level == map then
             timer.Simple(0, function()
                 ply:GetActiveWeapon():UpdatePotatoGun(true)
