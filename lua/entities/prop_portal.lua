@@ -122,8 +122,6 @@ function ENT:Initialize()
 		self:SetCollisionGroup(COLLISION_GROUP_WORLD)
 		self:DrawShadow(false)
 
-		print(self:GetPos())
-		print(self:GetPos() + self:GetAngles():Right() * 16)
 		self:SetPos(self:GetPos() + self:GetAngles():Up() * 7.1)
 
 		PortalManager.PortalIndex = PortalManager.PortalIndex + 1
@@ -365,7 +363,7 @@ function ENT:UpdatePhysmesh()
 end
 
 function ENT:UpdateTransmitState()
-	return TRANSMIT_ALWAYS
+	return TRANSMIT_PVS
 end
 
 function ENT:OnPhysgunPickup(ply, ent)
