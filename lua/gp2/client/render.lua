@@ -18,6 +18,9 @@ PropTractorBeam.Beams = PropTractorBeam.Beams or {}
 NpcPortalTurretFloor = NpcPortalTurretFloor or {}
 NpcPortalTurretFloor.Turrets = NpcPortalTurretFloor.Turrets or {}
 
+PropPortal = PropPortal or {}
+PropPortal.Portals = PropPortal.Portals or {}
+
 local MAX_RAY_LENGTH = 8192
 local LASER_MATERIAL = Material("sprites/purplelaser1.vmt")
 local LASER_MATERIAL_LETHAL = Material("sprites/laserbeam.vmt")
@@ -412,6 +415,23 @@ function NpcPortalTurretFloor.Render()
     end
 end
 
+function PropPortal.AddToRenderList(portal)
+    PropPortal.Portals[portal] = true
+end
+
+function PropPortal.IsAddedToRenderList(portal)
+    return PropPortal.Portals[portal] ~= nil
+end
+
+function PropPortal.Render()
+    for portal in pairs(PropPortal.Portals) do
+        if not IsValid(portal) then PropPortal.Portals[portal] = nil ; continue end
+        if not portal:GetActivated() then continue end
+
+        portal:DrawGhost()
+    end
+end
+
 hook.Add("PreDrawTranslucentRenderables", "GP2::PreDrawTranslucentRenderables", function(depth, sky, skybox3d)
     if depth or sky then return end
 
@@ -430,4 +450,8 @@ hook.Add("PostDrawTranslucentRenderables", "GP2::PostDrawTranslucentRenderables"
     ProjectedTractorBeamEntity.Render()
     NpcPortalTurretFloor.Render()
     PropTractorBeam.Render()
+end)
+
+hook.Add("PostDrawOpaqueRenderables", "GP2::PostDrawOpaqueRenderables", function(depth, sky, skybox3d)
+    PropPortal.Render()
 end)

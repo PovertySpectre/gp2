@@ -25,6 +25,7 @@ local angle_zero = Angle(0, 0, 0)
 
 local gp2_portal_drawdistance = CreateClientConVar("gp2_portal_drawdistance", "250", true, true, "Sets the multiplier of how far a portal should render", 0)
 local gp2_portal_refreshrate = CreateClientConVar("gp2_portal_refreshrate", "1", false, false, "How many frames to skip before rendering the next portal", 1)
+local gp2_portal_draw_ghosting = CreateClientConVar("gp2_portal_draw_ghosting", "1", true, false, "Toggles the outline visible on portals through walls")
 
 local renderViewTable = {
 	x = 0,
@@ -158,4 +159,8 @@ end)
 
 function PortalRendering.GetDrawDistance()
 	return gp2_portal_drawdistance:GetFloat()
+end
+
+function PortalRendering.GetShowGhosting()
+	return gp2_portal_draw_ghosting:GetBool()
 end

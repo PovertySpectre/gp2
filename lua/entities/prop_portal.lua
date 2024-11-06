@@ -147,11 +147,19 @@ if CLIENT then
 	local stencilHole = Material("models/portals/portal_stencil_hole")
 	local dummyBlue = CreateMaterial("portalringdummy-blue", "UnlitGeneric", {
 		["$basetexture"] = "models/portals/dummy-blue",
-		["$nocull"] = 1
+		["$nocull"] = 1,
+		--["$model"] = 1,
+		["$translucent"] = 1,
+		["$vertexalpha"] = 1,
+		["$vertexcolor"] = 1,
 	})
 	local dummyOrange = CreateMaterial("portalringdummy-orange", "UnlitGeneric", {
 		["$basetexture"] = "models/portals/dummy-orange",
-		["$nocull"] = 1
+		["$nocull"] = 1,
+		--["$model"] = 1,
+		["$translucent"] = 1,
+		["$vertexalpha"] = 1,
+		["$vertexcolor"] = 1,
 	})
 	local PORTAL_OVERLAYS = {
 		Material("models/portals/portalstaticoverlay_1"),
@@ -160,9 +168,10 @@ if CLIENT then
 
 	local function getRenderMesh()
 		if not PortalRendering.PortalMeshes[4] then
-			PortalRendering.PortalMeshes[4] = {nil, Mesh()}
+			PortalRendering.PortalMeshes[4] = { Mesh(), Mesh() }
 
 			local invMeshTable = {}
+			local meshTable = {}
 
 			local corners = {
 				Vector(-1, -1, -1),
@@ -178,17 +187,25 @@ if CLIENT then
 				Vector(0, 0)
 			}
 
-			for i = 1, 4 do	  
-				table.insert(invMeshTable, {pos = corners[i], u = uv[i].y, v = 1 - uv[i].x})
-				table.insert(invMeshTable, {pos = Vector(0, 0, -1), u = 0.5, v = 0.5})
-				table.insert(invMeshTable, {pos = corners[i % 4 + 1], u = uv[i % 4 + 1].y, v = 1 - uv[i % 4 + 1].x})
+			for i = 1, 4 do
+				table.insert(meshTable, { pos = corners[i % 4 + 1], u = uv[i % 4 + 1].y, v = 1 - uv[i % 4 + 1].x })
+				table.insert(meshTable, { pos = Vector(0, 0, -1), u = 0.5, v = 0.5 })
+				table.insert(meshTable, { pos = corners[i], u = uv[i].y, v = 1 - uv[i].x })
 			end
 
+			for i = 1, 4 do
+				table.insert(invMeshTable, { pos = corners[i], u = uv[i].y, v = 1 - uv[i].x })
+				table.insert(invMeshTable, { pos = Vector(0, 0, -1), u = 0.5, v = 0.5 })
+				table.insert(invMeshTable, { pos = corners[i % 4 + 1], u = uv[i % 4 + 1].y, v = 1 - uv[i % 4 + 1].x })
+			end
+
+			PortalRendering.PortalMeshes[4][1]:BuildFromTriangles(meshTable)
 			PortalRendering.PortalMeshes[4][2]:BuildFromTriangles(invMeshTable)
 		end
 
-		return PortalRendering.PortalMeshes[4][2]
+		return PortalRendering.PortalMeshes[4][2], PortalRendering.PortalMeshes[4][1]
 	end
+	
 	
 	function ENT:Draw()
 		if not self:GetActivated() then return end
@@ -200,7 +217,7 @@ if CLIENT then
 		local cam = cam
 		local size = self:GetSize()
 		local renderMesh = getRenderMesh()
-		if self.RENDER_MATRIX:GetTranslation() != self:GetPos() or self.RENDER_MATRIX:GetScale() != size then
+		if self.RENDER_MATRIX:GetTranslation() ~= self:GetPos() or self.RENDER_MATRIX:GetScale() != size then
 			self.RENDER_MATRIX:Identity()
 			self.RENDER_MATRIX:SetTranslation(self:GetPos())
 			self.RENDER_MATRIX:SetAngles(self:GetAngles())
@@ -264,6 +281,49 @@ if CLIENT then
 		cam.PopModelMatrix()
 	end
 
+	function ENT:DrawGhost()
+		local renderMesh, renderMesh2 = getRenderMesh()
+		local portalType = self:GetType()
+
+		-- Render portal ghost
+		if not PortalRendering.Rendering and PortalRendering.GetShowGhosting() then
+			render.SetStencilWriteMask( 255 )
+			render.SetStencilTestMask( 255 )
+			render.SetStencilReferenceValue( 1 )
+			render.SetStencilCompareFunction( STENCIL_ALWAYS )
+			render.SetStencilPassOperation( STENCIL_KEEP )
+			render.SetStencilFailOperation( STENCIL_KEEP )
+			render.SetStencilZFailOperation( STENCIL_KEEP )
+			render.ClearStencil() -- Set the Stencil Value to 0 for all pixels
+
+			render.SetStencilEnable( true )
+
+			render.SetStencilReferenceValue( 1 )
+			render.SetStencilCompareFunction( STENCIL_ALWAYS )
+			render.SetStencilZFailOperation( STENCIL_REPLACE )
+
+			render.SetColorMaterial()
+			render.OverrideColorWriteEnable(true, false)
+			cam.PushModelMatrix(self.RENDER_MATRIX)
+				renderMesh:Draw()
+				renderMesh2:Draw()
+			cam.PopModelMatrix()    
+			render.OverrideColorWriteEnable(false, false)
+
+			render.SetStencilCompareFunction(STENCIL_EQUAL)
+
+			render.SetMaterial(portalType == PORTAL_TYPE_ORANGE and dummyOrange or dummyBlue)
+			cam.IgnoreZ(true)
+			cam.PushModelMatrix(self.RENDER_MATRIX)
+				renderMesh:Draw()
+				renderMesh2:Draw()
+			cam.PopModelMatrix() 
+			cam.IgnoreZ(false)
+
+			render.SetStencilEnable(false)
+		end		
+	end
+
 	-- hacky bullet fix
 	if game.SinglePlayer() then
 		function ENT:TestCollision(startpos, delta, isbox, extents, mask)
@@ -300,12 +360,12 @@ function ENT:UpdatePhysmesh()
 	else
 		self:PhysicsDestroy()
 		self:EnableCustomCollisions(false)
-		print("Failure to create a portal physics mesh " .. self:EntIndex())
+		--print("Failure to create a portal physics mesh " .. self:EntIndex())
 	end
 end
 
 function ENT:UpdateTransmitState()
-	return TRANSMIT_PVS
+	return TRANSMIT_ALWAYS
 end
 
 function ENT:OnPhysgunPickup(ply, ent)
@@ -347,6 +407,8 @@ if CLIENT then
 	PortalRendering.PortalMeshes = {}
 
 	function ENT:Think()
+		PropPortal.AddToRenderList(self)
+
 		local phys = self:GetPhysicsObject()
 		if phys:IsValid() then
 			phys:EnableMotion(false)
