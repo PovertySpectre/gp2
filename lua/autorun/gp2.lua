@@ -178,7 +178,6 @@ if SERVER then
                         local info = firstPlayer:GetInfo("gp2_portal_color" .. portal:GetType() + 1)
                         local r, g, b = unpack((info or "255 255 255"):Split(" "))
         
-                        print('Overriding color to \n\n\n\n\n' .. r .. g .. b)
                         portal:SetPortalColor(r, g, b)
                     end
                 end
@@ -223,25 +222,6 @@ if SERVER then
             ply:SetMoveType(MOVETYPE_WALK)
             ply:RemoveEffects(EF_NODRAW)
             ply.FrozenByCamera = nil
-        end
-
-        local wep = ply:GetActiveWeapon()
-        if not IsValid(wep) then return end
-        local vm = ply:GetViewModel(0)
-        local entUse = ply:GetEntityInUse()
-
-        if IsValid(entUse) then
-            vm:RemoveEffects(EF_NODRAW)
-            if vm:GetSequence() ~= 10 then
-                vm:SendViewModelMatchingSequence(10)
-            end
-            ply.HeldEntityRecently = true
-        else
-            if ply.HeldEntityRecently then
-                vm:SendViewModelMatchingSequence(12)
-                vm:RemoveEffects(EF_NODRAW)
-                ply.HeldEntityRecently = false
-            end
         end
     end)
 

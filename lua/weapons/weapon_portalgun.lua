@@ -193,6 +193,7 @@ function SWEP:SetupDataTables()
     self:NetworkVar("Bool", "CanFirePortal2")
     self:NetworkVar("Int", "LinkageGroup")
     self:NetworkVar("Entity", "LastPlacedPortal")
+    self:NetworkVar("Entity", "EntityInUse")
 
 	if SERVER then
 		self:SetCanFirePortal1(true) -- default only portal 1
@@ -201,7 +202,8 @@ end
 
 function SWEP:Deploy()
 	if CLIENT then return end
-	
+
+
 	if not self.GotCustomLinkageGroup then
 		self:SetLinkageGroup(self:GetOwner():EntIndex() - 1)
 	end
@@ -211,15 +213,57 @@ function SWEP:Deploy()
         self:GetOwner():GetViewModel(0):SetBodygroup(1, 1)
         self:SetBodygroup(1, 1)
     end
+
+	local owner = self:GetOwner()
+	local vm0 = owner:GetViewModel(0)
+	local vm1 = owner:GetViewModel(1)
+
+	if not IsValid(self.HoldSound) then
+		local filter = RecipientFilter()
+		filter:AddPlayer(owner)
+		
+		self.HoldSound = CreateSound(self, "PortalPlayer.ObjectUse", filter)
+	end
+
+	local seq = vm1:SelectWeightedSequence(ACT_VM_RELEASE)
+
+	-- Previously we held object, use other deploy sequence
+	if self.GotEntityInUse then
+		vm0:SendViewModelMatchingSequence(seq)
+		self:StopSound("PortalPlayer.ObjectUse")
+
+		-- No operator stacks
+		self:EmitSound("PortalPlayer.ObjectUseStop", 0)
+	end
 	
+	if IsValid(vm1) then
+		vm1:SetWeaponModel(self:GetWeaponViewModel(), NULL)
+	end
 
     return true
 end
 
 function SWEP:Holster(arguments)
-	if IsValid(self.TopLightFirstPerson) then
-		self.TopLightFirstPerson:StopEmission()
-		self.TopLightFirstPerson = nil
+	if SERVER then
+		local owner = self:GetOwner()
+		local vm1 = owner:GetViewModel(1)
+	
+		if IsValid(vm1) then
+			vm1:SetWeaponModel(self:GetWeaponViewModel(), self)
+		end
+	
+		timer.Simple(0, function()
+			print('Holster')
+	
+			if IsValid(vm1) and IsValid(owner:GetEntityInUse()) then
+				vm1:SendViewModelMatchingSequence(self:SelectWeightedSequence(ACT_VM_PICKUP))
+				self.GotEntityInUse = true
+				self:EmitSound("PortalPlayer.ObjectUse", 0)
+			else
+				vm1:SetWeaponModel(self:GetWeaponViewModel(), NULL)
+			end
+		end)
+	
 	end
 
     return true
@@ -344,6 +388,11 @@ function SWEP:Think()
         if CurTime() > self.NextIdleTime and self:GetActivity() ~= ACT_VM_IDLE then
             self:SendWeaponAnim(ACT_VM_IDLE)
         end
+
+		if self:GetEntityInUse() ~= owner:GetEntityInUse() then
+			self:SetEntityInUse(owner:GetEntityInUse())
+			print('Got entity in use')
+		end
     end
 
     self:NextThink(CurTime())
@@ -403,11 +452,17 @@ function SWEP:ClearPortals()
 end
 
 function SWEP:ViewModelDrawn(vm)
+	local owner = vm:GetOwner()
+	local vm0 = owner:GetViewModel(0)
+	local vm1 = owner:GetViewModel(1)
+
 	if not self.TopLightFirstPersonAttachment then
-		self.TopLightFirstPersonAttachment = vm:LookupAttachment("Body_light")
+		self.TopLightFirstPersonAttachment = vm0:LookupAttachment("Body_light")
 	end
 
-	local owner = vm:GetOwner()
+	if not self.TopLightFirstPerson2Attachment then
+		self.TopLightFirstPerson2Attachment = vm1:LookupAttachment("Body_light")
+	end
 
 	local lastPlacedPortal = self:GetLastPlacedPortal()
 	local lightColor
@@ -417,6 +472,23 @@ function SWEP:ViewModelDrawn(vm)
 	else
 		lightColor = lastPlacedPortal:GetColorVector()
 	end
+
+	if self.TopLightColor ~= lightColor then
+		lightColor.x = lightColor.x * 0.5
+		lightColor.y = lightColor.y * 0.5
+		lightColor.z = lightColor.z * 0.5
+
+		-- Set color to current portal placed
+		if IsValid(self.TopLightFirstPerson) then
+			self.TopLightFirstPerson:SetControlPoint(1, lightColor)
+		end
+		
+		if IsValid(self.TopLightFirstPerson2) then
+			self.TopLightFirstPerson2:SetControlPoint(1, lightColor)
+		end
+
+		self.TopLightColor = lightColor
+	end
 	
 	if not self.TopLightColor then
 		self.TopLightColor = Vector()
@@ -424,26 +496,33 @@ function SWEP:ViewModelDrawn(vm)
 
 	-- Top light particle (and beam)
 	if not IsValid(self.TopLightFirstPerson) then
-		self.TopLightFirstPerson = CreateParticleSystem(vm, "portalgun_top_light_firstperson", PATTACH_POINT_FOLLOW, self.TopLightFirstPersonAttachment )
+		self.TopLightFirstPerson = CreateParticleSystem(vm0, "portalgun_top_light_firstperson", PATTACH_POINT_FOLLOW, self.TopLightFirstPersonAttachment )
 		self.TopLightFirstPerson:SetIsViewModelEffect(true)
 		self.TopLightFirstPerson:SetShouldDraw(false)
 
 		-- Beam particles
 		self.TopLightFirstPerson:AddControlPoint(2, owner, PATTACH_CUSTOMORIGIN)
-		self.TopLightFirstPerson:AddControlPoint(3, vm, PATTACH_POINT_FOLLOW, "Beam_point1")
-		self.TopLightFirstPerson:AddControlPoint(4, vm, PATTACH_POINT_FOLLOW, "Beam_point5")
+		self.TopLightFirstPerson:AddControlPoint(3, vm0, PATTACH_POINT_FOLLOW, "Beam_point1")
+		self.TopLightFirstPerson:AddControlPoint(4, vm0, PATTACH_POINT_FOLLOW, "Beam_point5")
 	else
-		self.TopLightFirstPerson:Render()
+		if vm == vm0 then
+			self.TopLightFirstPerson:Render()
+		end
+	end
 
-		if self.TopLightColor ~= lightColor then
-			lightColor.x = lightColor.x * 0.5
-			lightColor.y = lightColor.y * 0.5
-			lightColor.z = lightColor.z * 0.5
+	-- Top light particle (and beam) for second vm
+	if not IsValid(self.TopLightFirstPerson2) then
+		self.TopLightFirstPerson2 = CreateParticleSystem(vm1, "portalgun_top_light_firstperson", PATTACH_POINT_FOLLOW, self.TopLightFirstPerson2Attachment )
+		self.TopLightFirstPerson2:SetIsViewModelEffect(true)
+		self.TopLightFirstPerson2:SetShouldDraw(false)
 
-			-- Set color to current portal placed
-			self.TopLightFirstPerson:SetControlPoint(1, lightColor)
-
-			self.TopLightColor = lightColor
+		-- Beam particles
+		self.TopLightFirstPerson2:AddControlPoint(2, owner, PATTACH_CUSTOMORIGIN)
+		self.TopLightFirstPerson2:AddControlPoint(3, vm1, PATTACH_POINT_FOLLOW, "Beam_point1")
+		self.TopLightFirstPerson2:AddControlPoint(4, vm1, PATTACH_POINT_FOLLOW, "Beam_point5")
+	else
+		if vm == vm1 then
+			self.TopLightFirstPerson2:Render()
 		end
 	end
 end
