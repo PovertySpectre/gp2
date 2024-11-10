@@ -48,6 +48,7 @@ def get_latest_git_commit():
 def execute_fastgmad_update(git_commit):
     current_folder = os.path.dirname(os.path.abspath(__file__))
     command = f'fastgmad update -id "{ADDON_ID}" -addon "{current_folder}" -changes "Built from {git_commit}"'
+    print(command)
 
     try:
         result = subprocess.run(command, shell=True, check=True, text=True, capture_output=True)

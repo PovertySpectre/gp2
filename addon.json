@@ -22,6 +22,8 @@
 		"addon.png",
 		"LICENSE",
 		"README.md",
-		"lights.rad"
+		"lights.rad",
+		"*.code-workspace",
+		"lua/.vscode/settings.json"
 	]
 }
