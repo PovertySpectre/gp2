@@ -27,29 +27,42 @@ end
 
 function ENT:SetupDataTables()
     self:NetworkVar( "Bool", "Enabled" )
+
+    if SERVER then
+        self:SetEnabled(true)
+    end
 end
 
 function ENT:Initialize()
     self:SetTrigger(true)
 
-    for _, mat in pairs(self:GetMaterials()) do
-        if not mats[mat] then
-            mats[mat] = Material(mat)
-        end
-
-        if mats[mat]:GetShader():StartsWith("SolidEnergy") then
-            self:RemoveEffects(EF_NODRAW)
+    if self:GetEnabled() then
+        for _, mat in pairs(self:GetMaterials()) do
+            if not mats[mat] then
+                mats[mat] = Material(mat)
+            end
+    
+            if mats[mat]:GetShader():StartsWith("SolidEnergy") then
+                self:RemoveEffects(EF_NODRAW)
+            end
         end
     end
 end
 
 function ENT:StartTouch(ent)
+    print('st')
     if not self:GetEnabled() then return end
     if not IsValid(ent) then return end
+
+    if ent:IsPlayer() then
+        print('ent')
+        if IsValid(ent:GetActiveWeapon()) then
+            ent:GetActiveWeapon():ClearPortals()
+        end
+    end
+
     if not ENTS_TO_DISSOLVE[ent:GetClass()] then return end
     
     ent:Dissolve(0)
-    if ent.Fizzle and isfunction(ent.Fizzle) then
-        ent:Fizzle()
-    end
+
 end
