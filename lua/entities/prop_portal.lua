@@ -10,6 +10,7 @@ ENT.Spawnable    = false
 
 function ENT:SetupDataTables()
 	self:NetworkVar("Bool", "Activated")
+	self:NetworkVar("Bool", "PlacedByMap")
 	self:NetworkVar("Entity", "LinkedPartnerInternal")
 	self:NetworkVar("Vector", "SizeInternal")
 	self:NetworkVar("Int", "SidesInternal")
@@ -22,6 +23,7 @@ function ENT:SetupDataTables()
 	if SERVER then
 		self:SetSize(Vector(PORTAL_HEIGHT / 2, PORTAL_WIDTH / 2, 7))
 		self:SetColorVectorInternal(Vector(255,255,255))
+		self:SetPlacedByMap(true)
 	end
 
 	self:NetworkVarNotify("Activated", self.OnActivated)

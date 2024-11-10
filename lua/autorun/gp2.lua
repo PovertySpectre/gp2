@@ -169,6 +169,23 @@ if SERVER then
         end)
     end
 
+    function fixPortalColors()
+        timer.Simple(2, function()
+            for _, portal in ipairs(ents.FindByClass("prop_portal")) do
+                if portal:GetPlacedByMap() then
+                    local firstPlayer = Entity(1)				
+                    if IsValid(firstPlayer) then
+                        local info = firstPlayer:GetInfo("gp2_portal_color" .. portal:GetType() + 1)
+                        local r, g, b = unpack((info or "255 255 255"):Split(" "))
+        
+                        print('Overriding color to \n\n\n\n\n' .. r .. g .. b)
+                        portal:SetPortalColor(r, g, b)
+                    end
+                end
+            end
+        end)
+    end
+
     hook.Add("PostCleanupMap", "GP2::PostCleanupMap", function()
         GP2.VScriptMgr.InitializeScriptForEntity(game.GetWorld(), "mapspawn")
         GP2.VScriptMgr.CallHookFunction("OnPostSpawn", true)
@@ -176,6 +193,7 @@ if SERVER then
         PaintManager.Initialize()
 
         fixTonemaps()
+        fixPortalColors()
     end)
 
     hook.Add("InitPostEntity", "GP2::InitPostEntity", function()
@@ -185,6 +203,7 @@ if SERVER then
         PaintManager.Initialize()
 
         fixTonemaps()
+        fixPortalColors()
     end)
 
     hook.Add("Think", "GP2::Think", function()

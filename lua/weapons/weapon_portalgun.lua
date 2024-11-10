@@ -287,6 +287,7 @@ function SWEP:PlacePortal(type, owner)
 	local portal = ents.Create("prop_portal")
 	if not IsValid(portal) then return end
 
+	portal:SetPlacedByMap(false)
 	portal:SetPortalColor(tonumber(r or 255), tonumber(g or 255), tonumber(b or 255))
 	portal:SetType(type or 0)
 	portal:SetLinkageGroup(self:GetLinkageGroup())
