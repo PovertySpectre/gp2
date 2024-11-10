@@ -17,4 +17,27 @@ else
         table.insert(resultTable, { pos = v4, u = uv4[1], v = uv4[2] })
         table.insert(resultTable, { pos = v1, u = uv1[1], v = uv1[2] })
     end
+
+    function GP2.Utils.ToViewModelPosition(vOrigin)
+        local view = render.GetViewSetup()
+        local vEyePos = view.origin
+        local aEyesRot = view.angles
+        local vOffset = vOrigin - vEyePos
+        local vForward = aEyesRot:Forward()
+    
+        local nViewX = math.tan(view.fovviewmodel_unscaled * math.pi / 360)
+        local nWorldX = math.tan(view.fov_unscaled * math.pi / 360)
+    
+        if (nViewX == 0 or nWorldX == 0) then
+            return vEyePos + vForward * vForward:Dot(vOffset)
+        end
+    
+        local nFactor = nViewX / nWorldX
+    
+        return vEyePos
+            + aEyesRot:Right() * (aEyesRot:Right():Dot(vOffset) * nFactor)
+            + aEyesRot:Up() * (aEyesRot:Up():Dot(vOffset) * nFactor)
+            + vForward * vForward:Dot(vOffset)
+    end
+    
 end

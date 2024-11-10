@@ -29,9 +29,6 @@ hook.Add("SetupPlayerVisibility", "seamless_portals", function(ply, viewEntity)
             local linkedPartner = portal:GetLinkedPartner()
 
             -- check the visibility of the portal and the existence of its exit portal before adding to the PVS
-            if IsValid(portal) and not ply:TestPVS(portal) then
-                AddOriginToPVS( portal:GetPos() )
-            end
             if IsValid(linkedPartner) and ply:TestPVS(portal) 
                 and PortalManager.ShouldRender(portal, eyePos, eyeAngle, distance) then
                 

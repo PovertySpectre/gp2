@@ -1,42 +1,73 @@
+-- ----------------------------------------------------------------------------
+-- GP2 Framework
+-- Shared manager for portals
+-- Holds portal indexes and linkage group infos, also helper functions
+-- Original code: Mee
+-- ----------------------------------------------------------------------------
 AddCSLuaFile()
 
+--- Everything related to portal logic
 PortalManager = {}
 
 -- the number of portals in the map
 PortalManager.PortalIndex = 0
 
+--- Linkage groups
+--- A table used to manage linkage between portals.
+--- This structure is used to pair portals, where each entry consists
+--- of two portals.
+---
+--- **Structure**:
+--- - An indexed table where the key is a linkage group.
+--- - Each value is a table containing exactly two elements (portals)
 PortalManager.LinkageGroups = {
 	[0] = { NULL, NULL },
 }
 
+--- Write/rewrite portal in specified linkage group
+--- @param linkageGroup integer linkage group
+--- @param entity Entity portal
 function PortalManager.SetPortal(linkageGroup, entity)
 	if not IsValid(entity) or entity:GetClass() ~= "prop_portal" then
 		return
 	end
 
+	-- If following group not found, add it to table
 	if PortalManager.LinkageGroups[linkageGroup] == nil then
 		PortalManager.LinkageGroups[linkageGroup] = { NULL, NULL }
 	end
 
+	-- Get type of portal
 	local portalType = entity:GetType()
-	local oppositePortalType = entity:GetType() == PORTAL_TYPE_BLUE and PORTAL_TYPE_ORANGE or PORTAL_TYPE_BLUE
-	local portal = PortalManager.LinkageGroups[linkageGroup][portalType]
-	local oppositePortal = PortalManager.LinkageGroups[linkageGroup][oppositePortalType]
 
-	print(PortalManager.LinkageGroups[linkageGroup][PORTAL_TYPE_ORANGE])
+	-- Get opposite portal type
+	local oppositePortalType = entity:GetType() == PORTAL_TYPE_FIRST and PORTAL_TYPE_SECOND or PORTAL_TYPE_FIRST
+
+	-- Get portal in group
+	--- @type Entity
+	local portal = PortalManager.LinkageGroups[linkageGroup][portalType]
+
+	-- Get opposite portal in group
+	local oppositePortal = PortalManager.LinkageGroups[linkageGroup][oppositePortalType]
 	
 	GP2.Print("Setting portal for linkageGroup == " .. linkageGroup .. " to " .. tostring(entity) .. " (type " .. portalType .. ")")
 
+	-- If some portal already occupied place in group
+	-- fizzle it
 	if IsValid(portal) and portal ~= entity then
 		if SERVER then
-			portal:Remove()
+			portal:Fizzle()
 		end
 	end
 
+	-- If opposite portal exists
+	-- link with it
 	if IsValid(oppositePortal) then
 		entity:SetLinkedPartner(oppositePortal)
 	end
 
+	-- If portal is activated then add it to group
+	-- to prevent next
 	if entity:GetActivated() then
 		PortalManager.LinkageGroups[linkageGroup][portalType] = entity
 	end
@@ -50,24 +81,12 @@ function PortalManager.TransformPortal(a, b, pos, ang)
 	if pos then
 		editedPos = a:WorldToLocal(pos) * (b:GetSize()[1] / a:GetSize()[1])
 		editedPos = b:LocalToWorld(Vector(editedPos[1], -editedPos[2], -editedPos[3]))
-		editedPos = editedPos + b:GetUp() * 0.01	// so you dont become trapped
+		editedPos = editedPos + b:GetUp() * 0.01 -- so you dont become trapped
 	end
 
 	if ang then
 		local localAng = a:WorldToLocalAngles(ang)
 		editedAng = b:LocalToWorldAngles(Angle(-localAng[1], -localAng[2], localAng[3] + 180))
-	end
-
-	-- mirror portal
-	if a == b then
-		if pos then
-			editedPos = a:LocalToWorld(a:WorldToLocal(pos) * Vector(1, 1, -1)) 
-		end
-
-		if ang then
-			local localAng = a:WorldToLocalAngles(ang)
-			editedAng = a:LocalToWorldAngles(Angle(-localAng[1], localAng[2], -localAng[3] + 180))
-		end
 	end
 
 	return editedPos, editedAng
@@ -82,6 +101,10 @@ function PortalManager.UpdateTraceline()
 end
 
 PortalManager.TraceLine = util.TraceLine
+
+--- Portal version of [util.TraceLine](https://wiki.facepunch.com/gmod/util.TraceLine)
+--- @param data Trace
+--- @return TraceResult result Result structure of [util.TraceLine](https://wiki.facepunch.com/gmod/util.TraceLine)
 function PortalManager.TraceLinePortal(data)
 	local tr = PortalManager.TraceLine(data)
 	if tr.Entity:IsValid() then
@@ -110,8 +133,12 @@ function PortalManager.TraceLinePortal(data)
 	return tr
 end
 
--- Should be in PortalRendering, but it's here
--- PortalRendering is CLIENTSIDE
+--- Should portal be visible according following eye position, angles and distance to portal?
+--- @param portal Entity Portal to check
+--- @param eyePos Vector Eyes position
+--- @param eyeAngle Angle Eyes angles
+--- @param distance number Threshold distance 
+--- @return boolean shouldRender Render that portal? 
 function PortalManager.ShouldRender(portal, eyePos, eyeAngle, distance)
     -- Check if the portal is dormant
     if portal:IsDormant() then return false end

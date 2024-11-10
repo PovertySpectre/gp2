@@ -28,14 +28,14 @@ local crosshairParts = {
 local crosshairMaterial = Material("hud/portal_crosshairs.png")
 local ref = Material("hud/ref1.png")
 
-local function drawCrosshairPart(id, x, y, color)
+local function drawCrosshairPart(id, x, y, r, g, b, a)
     local part = crosshairParts[id]
     if not part then
-        print("Invalid crosshair part ID:", id)
+        GP2.Print("Invalid crosshair part ID:", id)
         return
     end
 
-    surface_SetDrawColor(color or Color(255, 255, 255, 255))
+    surface_SetDrawColor(r, g, b, a)
     surface_SetMaterial(crosshairMaterial)
 
     local textureWidth = crosshairMaterial:Width()
@@ -48,14 +48,33 @@ local function drawCrosshairPart(id, x, y, color)
     surface_DrawTexturedRectUV(x, y, part.width, part.height, u0, v0, u1, v1)
 end
 
+
+local function desaturateAndBrighten(r, g, b)
+    local gray = 0.3 * r + 0.59 * g + 0.11 * b
+
+    local desaturationFactor = 0.5
+    local brightnessFactor = 1.6
+
+    r = r * (1 - desaturationFactor) + gray * desaturationFactor
+    g = g * (1 - desaturationFactor) + gray * desaturationFactor
+    b = b * (1 - desaturationFactor) + gray * desaturationFactor
+
+    r = r * brightnessFactor
+    g = g * brightnessFactor
+    b = b * brightnessFactor
+
+    r = math.min(255, math.max(0, r))
+    g = math.min(255, math.max(0, g))
+    b = math.min(255, math.max(0, b))
+
+    return r, g, b
+end
+
 function PANEL:Init()
     self:SetWidth(ScrW())
     self:SetTall(ScrH())
     self:SetParent(GetHUDPanel())
 end
-
-local PORTAL_COLOR1 = Color(111, 185, 255)
-local PORTAL_COLOR2 = Color(255, 185, 84)
 
 function PANEL:Paint(w, h)
     self.ply = self.ply or LocalPlayer()
@@ -78,22 +97,39 @@ function PANEL:Paint(w, h)
     local placed1 = can1 and group[0] or group[1]
     local placed2 = can2 and group[1] or group[0]
 
-    local leftColor = can1 and PORTAL_COLOR1 or PORTAL_COLOR2
-    local rightColor = can2 and PORTAL_COLOR2 or PORTAL_COLOR1
 
-    leftColor.a = IsValid(placed1) and 255 or 196
-    rightColor.a = IsValid(placed2) and 255 or 196
+    if not self.gp2_portal_color1 then
+        self.gp2_portal_color1 = GetConVar("gp2_portal_color1")
+    end
+
+    if not self.gp2_portal_color2 then
+        self.gp2_portal_color2 = GetConVar("gp2_portal_color2")
+    end
+
+    local clr1 = self.gp2_portal_color1:GetString():Split(" ")
+    local clr2 = self.gp2_portal_color2:GetString():Split(" ")
+
+    local r1 = tonumber(clr1[1]) or 255
+    local g1 = tonumber(clr1[2]) or 255
+    local b1 = tonumber(clr1[3]) or 255
+
+    local r2 = tonumber(clr2[1]) or 255
+    local g2 = tonumber(clr2[2]) or 255
+    local b2 = tonumber(clr2[3]) or 255
+
+    r1, g1, b1 = desaturateAndBrighten(r1, g1, b1)
+    r2, g2, b2 = desaturateAndBrighten(r2, g2, b2)
 
     if IsValid(placed1) then
-        drawCrosshairPart(3, w / 2 - 29, h / 2 - 44, leftColor)
+        drawCrosshairPart(3, w / 2 - 29, h / 2 - 44, r1, g1, b1, 255)
     else
-        drawCrosshairPart(1, w / 2 - 31, h / 2 - 44, leftColor)
+        drawCrosshairPart(1, w / 2 - 31, h / 2 - 44, r1, g1, b1, 196)
     end
-    
+
     if IsValid(placed2) then
-        drawCrosshairPart(4, w / 2 - 17, h / 2 - 22, rightColor)
+        drawCrosshairPart(4, w / 2 - 17, h / 2 - 22, r2, g2, b2, 255)
     else
-        drawCrosshairPart(2, w / 2 - 18, h / 2 - 22, rightColor)
+        drawCrosshairPart(2, w / 2 - 18, h / 2 - 22, r2, g2, b2, 196)
     end
 
     surface_SetDrawColor(255,255,255,255)

@@ -7,22 +7,30 @@ local developer = GetConVar("developer")
 
 local fmt = string.format
 
-GP2_PROJECT_COLOR_THEME = Color(180,155,255)
+GP2_PROJECT_COLOR_THEME = Color(180, 155, 255)
 if SERVER then
-    GP2_PROJECT_COLOR_THEME_LIGHT = Color(238,232,255)
+    GP2_PROJECT_COLOR_THEME_LIGHT = Color(238, 232, 255)
 else
-    GP2_PROJECT_COLOR_THEME_LIGHT = Color(255,254,197)
+    GP2_PROJECT_COLOR_THEME_LIGHT = Color(255, 254, 197)
 end
-GP2_PROJECT_COLOR_THEME_ERROR = Color(255,90,90)
-GP2_PROJECT_COLOR_THEME_ERROR_LIGHT = Color(255,155,155)
+
+GP2_PROJECT_COLOR_THEME_ERROR = Color(255, 90, 90)
+GP2_PROJECT_COLOR_THEME_ERROR_LIGHT = Color(255, 155, 155)
 GP2_PROJECT_NAME = '[GP2] '
 
 GP2 = GP2 or {
+    --- Print message to console
+    --- @param msg string Message
+    --- @vararg any Optional params from format string
     Print = function(msg, ...)
         MsgC(GP2_PROJECT_COLOR_THEME, GP2_PROJECT_NAME)
         MsgC(GP2_PROJECT_COLOR_THEME_LIGHT, fmt(msg, ...))
         print()
     end,
+
+    --- Print error message to console (color differs depending on realm)
+    --- @param msg string Message
+    --- @vararg any Optional params from format string
     Error = function(msg, ...)
         MsgC(GP2_PROJECT_COLOR_THEME, GP2_PROJECT_NAME)
         MsgC(GP2_PROJECT_COLOR_THEME_ERROR_LIGHT, fmt(msg, ...))
@@ -30,15 +38,28 @@ GP2 = GP2 or {
     end,
 }
 
-PORTAL_TYPE_BLUE = 0
-PORTAL_TYPE_ORANGE = 1
+-- Blue (first) portal
+PORTAL_TYPE_FIRST = 0
+-- Orange (second) portal
+PORTAL_TYPE_SECOND = 1
 
+--- Default open duration (size)
 PORTAL_OPEN_DURATION = 0.5
+--- Default static duration (fill effect)
 PORTAL_STATIC_DURATION = 1
-PORTAL_COLOR1 = Color(64,160,255)
-PORTAL_COLOR2 = Color(255,160,64)
 
+--- Default color for first portal
+--- @return number, number, number: red, green, blue
+PORTAL1_DEFAULT_COLOR = {0, 115, 210}
+
+--- Default color for second portal
+--- @return number, number, number: red, green, blue
+PORTAL2_DEFAULT_COLOR = {210, 115, 0}
+
+--- Default width for portal
 PORTAL_WIDTH = 64
+
+--- Default height for portal
 PORTAL_HEIGHT = 112
 
 include("gp2/utils.lua")
@@ -61,43 +82,42 @@ AddCSLuaFile("gp2/paint.lua")
 AddCSLuaFile("gp2/client/hud.lua")
 GP2_VERSION = include("gp2/version.lua")
 
-list.Set( "ContentCategoryIcons", "Portal 2", "games/16/portal2.png" )
+list.Set("ContentCategoryIcons", "Portal 2", "games/16/portal2.png")
 
 -- Cubes
+list.Set("SpawnableEntities", "prop_weighted_cube_clean", {
+    PrintName = "Cube",
+    ClassName = "prop_weighted_cube",
+    Category = "Portal 2"
+})
 
-list.Set( "SpawnableEntities", "prop_weighted_cube_clean", {
-	PrintName = "Cube",
-	ClassName = "prop_weighted_cube",
-	Category = "Portal 2"
-} )
-
-list.Set( "SpawnableEntities", "prop_weighted_cube_companion", {
-	PrintName = "Cube (Companion)",
-	ClassName = "prop_weighted_cube",
-	Category = "Portal 2",
+list.Set("SpawnableEntities", "prop_weighted_cube_companion", {
+    PrintName = "Cube (Companion)",
+    ClassName = "prop_weighted_cube",
+    Category = "Portal 2",
     KeyValues = { NewSkins = 1, CubeType = 1 }
-} )
+})
 
-list.Set( "SpawnableEntities", "prop_weighted_cube_reflective", {
-	PrintName = "Cube (Reflective)",
-	ClassName = "prop_weighted_cube",
-	Category = "Portal 2",
+list.Set("SpawnableEntities", "prop_weighted_cube_reflective", {
+    PrintName = "Cube (Reflective)",
+    ClassName = "prop_weighted_cube",
+    Category = "Portal 2",
     KeyValues = { NewSkins = 1, CubeType = 2 }
-} )
+})
 
-list.Set( "SpawnableEntities", "prop_weighted_cube_sphere", {
-	PrintName = "Cube (Sphere)",
-	ClassName = "prop_weighted_cube",
-	Category = "Portal 2",
+list.Set("SpawnableEntities", "prop_weighted_cube_sphere", {
+    PrintName = "Cube (Sphere)",
+    ClassName = "prop_weighted_cube",
+    Category = "Portal 2",
     KeyValues = { NewSkins = 1, CubeType = 3 }
-} )
+})
 
-list.Set( "SpawnableEntities", "prop_weighted_cube_antique", {
-	PrintName = "Cube (Antique)",
-	ClassName = "prop_weighted_cube",
-	Category = "Portal 2",
+list.Set("SpawnableEntities", "prop_weighted_cube_antique", {
+    PrintName = "Cube (Antique)",
+    ClassName = "prop_weighted_cube",
+    Category = "Portal 2",
     KeyValues = { NewSkins = 1, CubeType = 4 }
-} )
+})
 
 
 if SERVER then
@@ -141,7 +161,7 @@ if SERVER then
                 ctrl:Activate()
                 table.insert(tonemapCtrls, ctrl)
             end
-    
+
             for _, ent in ipairs(tonemapCtrls) do
                 -- Set to 1, triggers reroute in inputsmanager.lua
                 ent:Input("setbloomscale", NULL, NULL, 1)
@@ -171,39 +191,37 @@ if SERVER then
         GP2.VScriptMgr.Think()
         -- SoundManager.Think()
         MouthManager.Think()
+    end)
 
-        for _, ply in ipairs(player.GetHumans()) do
-            if not ply:Alive() then continue end
+    hook.Add("PlayerTick", "GP2::PlayerTick", function(ply, mv)
+        if not ply:Alive() then return end
 
-            if IsValid(ply:GetViewEntity()) and ply:GetViewEntity():GetClass() == "point_viewcontrol" then
-                ply:SetMoveType(MOVETYPE_NONE)
-                ply:AddEffects(EF_NODRAW)
-                ply.FrozenByCamera = true
-            elseif ply.FrozenByCamera then
-                ply:SetMoveType(MOVETYPE_WALK)
-                ply:RemoveEffects(EF_NODRAW)
-                ply.FrozenByCamera = nil
-            end
+        if IsValid(ply:GetViewEntity()) and ply:GetViewEntity():GetClass() == "point_viewcontrol" then
+            ply:SetMoveType(MOVETYPE_NONE)
+            ply:AddEffects(EF_NODRAW)
+            ply.FrozenByCamera = true
+        elseif ply.FrozenByCamera then
+            ply:SetMoveType(MOVETYPE_WALK)
+            ply:RemoveEffects(EF_NODRAW)
+            ply.FrozenByCamera = nil
+        end
 
-            local wep = ply:GetActiveWeapon()
-            if not IsValid(wep) then continue end
-            if wep:GetClass() ~= "weapon_portalgun" then continue end
-            local vm = ply:GetViewModel(0)
+        local wep = ply:GetActiveWeapon()
+        if not IsValid(wep) then return end
+        local vm = ply:GetViewModel(0)
+        local entUse = ply:GetEntityInUse()
 
-            if not IsValid(vm) then continue end
-
+        if IsValid(entUse) then
             vm:RemoveEffects(EF_NODRAW)
-            
-            if IsValid(ply:GetEntityInUse()) then
-                vm:ResetSequence(10)
+            if vm:GetSequence() ~= 10 then
+                vm:SendViewModelMatchingSequence(10)
+            end
+            ply.HeldEntityRecently = true
+        else
+            if ply.HeldEntityRecently then
+                vm:SendViewModelMatchingSequence(12)
                 vm:RemoveEffects(EF_NODRAW)
-                ply.HeldEntityRecently = true
-            else
-                if ply.HeldEntityRecently then
-                    vm:ResetSequence(12)
-                    vm:RemoveEffects(EF_NODRAW)
-                    ply.HeldEntityRecently = false
-                end
+                ply.HeldEntityRecently = false
             end
         end
     end)
@@ -248,24 +266,24 @@ if SERVER then
         if ent.OnGravGunDrop and isfunction(ent.OnGravGunDrop) then
             ent:OnGravGunDrop(ply)
         end
-    end) 
-    
+    end)
+
     hook.Add("GravGunPunt", "GP2::GravGunPunt", function(ply, ent)
         if ent.OnGravGunPunt and isfunction(ent.OnGravGunPunt) then
             return ent:OnGravGunPunt(ply)
         end
     end)
 
-    hook.Add( "PlayerFootstep", "GP2::PlayerFootsteps", function( ply, pos, foot, sound, volume, rf )
+    hook.Add("PlayerFootstep", "GP2::PlayerFootsteps", function(ply, pos, foot, sound, volume, rf)
         if ply:GetGroundEntity() ~= NULL then
             ply._PreviousGroundEnt = ply:GetGroundEntity()
         end
 
-        if ply._PreviousGroundEnt and IsValid(ply._PreviousGroundEnt) and ply._PreviousGroundEnt:GetClass() == "projected_wall_entity" then 
+        if ply._PreviousGroundEnt and IsValid(ply._PreviousGroundEnt) and ply._PreviousGroundEnt:GetClass() == "projected_wall_entity" then
             ply:EmitSound("Lightbridge.Step" .. (foot and "Right" or "Left"))
             return true
         end
-    end )
+    end)
 
     hook.Add("EntityEmitSound", "GP2::EntityEmitSound", function(data)
         local name = data.OriginalSoundName
@@ -274,10 +292,10 @@ if SERVER then
         local ent = data.Entity
         local pos = data.Pos
         local duration = SoundDuration(data.SoundName)
-    
+
         SoundManager.EntityEmitSound(name, ent, level, pos, duration)
         MouthManager.EmitSound(ent, file_path)
-    end)    
+    end)
 
     net.Receive(GP2.Net.SendLoadedToServer, function(len, ply)
         local whom = net.ReadEntity()

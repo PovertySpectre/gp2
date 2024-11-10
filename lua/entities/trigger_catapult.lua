@@ -9,16 +9,16 @@ local mats = {}
 
 local sv_gravity = GetConVar("sv_gravity")
 
-local SF_TRIGGER_ALLOW_CLIENTS				= 0x01		// Players can fire this trigger
-local SF_TRIGGER_ALLOW_NPCS					= 0x02		// NPCS can fire this trigger
-local SF_TRIGGER_ALLOW_PUSHABLES				= 0x04		// Pushables can fire this trigger
-local SF_TRIGGER_ALLOW_PHYSICS				= 0x08		// Physics objects can fire this trigger
-local SF_TRIGGER_ONLY_PLAYER_ALLY_NPCS		= 0x10		// *if* NPCs can fire this trigger, this flag means only player allies do so
-local SF_TRIGGER_ONLY_CLIENTS_IN_VEHICLES		= 0x20		// *if* Players can fire this trigger, this flag means only players inside vehicles can 
-local SF_TRIGGER_ALLOW_ALL					= 0x40		// Everything can fire this trigger EXCEPT DEBRIS!
-local SF_TRIGGER_ONLY_CLIENTS_OUT_OF_VEHICLES	= 0x200	// *if* Players can fire this trigger, this flag means only players outside vehicles can 
-local SF_TRIGGER_ONLY_NPCS_IN_VEHICLES		= 0X800	// *if* NPCs can fire this trigger, only NPCs in vehicles do so (respects player ally flag too)
-local SF_TRIGGER_DISALLOW_BOTS                = 0x1000   // Bots are not allowed to fire this trigger
+local SF_TRIGGER_ALLOW_CLIENTS				= 0x01		-- Players can fire this trigger
+local SF_TRIGGER_ALLOW_NPCS					= 0x02		-- NPCS can fire this trigger
+local SF_TRIGGER_ALLOW_PUSHABLES				= 0x04		-- Pushables can fire this trigger
+local SF_TRIGGER_ALLOW_PHYSICS				= 0x08		-- Physics objects can fire this trigger
+local SF_TRIGGER_ONLY_PLAYER_ALLY_NPCS		= 0x10		-- *if* NPCs can fire this trigger, this flag means only player allies do so
+local SF_TRIGGER_ONLY_CLIENTS_IN_VEHICLES		= 0x20		-- *if* Players can fire this trigger, this flag means only players inside vehicles can 
+local SF_TRIGGER_ALLOW_ALL					= 0x40		-- Everything can fire this trigger EXCEPT DEBRIS!
+local SF_TRIGGER_ONLY_CLIENTS_OUT_OF_VEHICLES	= 0x200	-- *if* Players can fire this trigger, this flag means only players outside vehicles can 
+local SF_TRIGGER_ONLY_NPCS_IN_VEHICLES		= 0X800	-- *if* NPCs can fire this trigger, only NPCs in vehicles do so (respects player ally flag too)
+local SF_TRIGGER_DISALLOW_BOTS                = 0x1000   -- Bots are not allowed to fire this trigger
 
 local pushable = {
     ["func_pushable"] = true

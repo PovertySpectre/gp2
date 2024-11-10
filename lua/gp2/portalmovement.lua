@@ -1,6 +1,8 @@
--- this file controls player movement through portals
--- is is also clientside because we need prediction
--- this is probably the most important and hacked together part of the mod
+-- ----------------------------------------------------------------------------
+-- GP2 Framework
+-- Controls player movement through portals (shared due prediction)
+-- Original code: Mee
+-- ----------------------------------------------------------------------------
 
 AddCSLuaFile()
 
@@ -168,7 +170,6 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 	traceTable.endpos = plyPos + plyVel * 0.02
 	traceTable.filter = seamless_check2
 	local tr = PortalManager.TraceLine(traceTable)
-	//PrintTable(tr)
 	if !tr.Hit then return end
 	local hitPortal = tr.Entity
 	if hitPortal:GetClass() == "prop_portal" and hitPortal.GetLinkedPartner and
@@ -194,7 +195,6 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 			traceTable.endpos = finalPos - Vector(0, 0, 0.01)
 			traceTable.filter = seamless_check
 			local tr = PortalManager.TraceLine(traceTable)
-			// extrude feet so the player isnt stuck
 			offset = tr.HitPos - finalPos
 		end
 
@@ -233,8 +233,13 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 			net.WriteBool(hitPortal == linkedPartner)
 			net.Send(ply)
 
-			hitPortal:TriggerOutput("OnTeleportFrom", ply)
-			linkedPartner:TriggerOutput("OnTeleportTo", ply)
+			hitPortal:TriggerOutput("OnPlayerTeleportFromMe", ply)
+			linkedPartner:TriggerOutput("OnPlayerTeleportToMe", ply)
+
+			local filter = RecipientFilter()
+			filter:AddPlayer(ply)
+
+			ply:EmitSound("PortalPlayer.ExitPortal", nil, nil, nil, nil, nil, nil, filter)
 		else
 			updateCalcViews(finalPos + eyeHeight, editedVelocity:Forward() * max * exitSize, (ply.SCALE_MULTIPLIER or 1) * exitSize)	--fix viewmodel lerping for a tiny bit
 			ply:SetEyeAngles(editedAng)

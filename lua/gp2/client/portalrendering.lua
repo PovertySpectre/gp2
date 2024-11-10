@@ -1,16 +1,26 @@
--- this is the rendering code for the portals, some references from: https://github.com/MattJeanes/world-portals
+-- ----------------------------------------------------------------------------
+-- GP2 Framework
+-- Rendering related operations (clientside)
+-- Original code: Mee
+-- ----------------------------------------------------------------------------
 
 AddCSLuaFile()
 
 if SERVER then return end
 
+--- Clientside portal rendering
 PortalRendering = {}
 
 PortalRendering.PortalRTs = {}
 PortalRendering.PortalMaterials = {}
+PortalRendering.PortalMeshes = {}
 
 -- max amount of portals being rendered at a time
 PortalRendering.MaxRTs = 6
+
+PortalRendering.RingRTs = {}
+PortalRendering.RingMaterials = {}
+PortalRendering.RingRTsIndex = 0
 
 local sky_cvar = GetConVar("sv_skyname")
 local sky_name = ""
@@ -20,12 +30,17 @@ local portals = {}
 local oldHalo = 0
 local timesRendered = 0
 
-local skysize = 16384	--2^14, default zfar limit
+local skysize = 16384 --2^14, default zfar limit
 local angle_zero = Angle(0, 0, 0)
 
-local gp2_portal_drawdistance = CreateClientConVar("gp2_portal_drawdistance", "250", true, true, "Sets the multiplier of how far a portal should render", 0)
-local gp2_portal_refreshrate = CreateClientConVar("gp2_portal_refreshrate", "1", false, false, "How many frames to skip before rendering the next portal", 1)
-local gp2_portal_draw_ghosting = CreateClientConVar("gp2_portal_draw_ghosting", "1", true, false, "Toggles the outline visible on portals through walls")
+local gp2_portal_drawdistance = CreateClientConVar("gp2_portal_drawdistance", "250", true, true,
+	"Sets the multiplier of how far a portal should render", 0)
+local gp2_portal_refreshrate = CreateClientConVar("gp2_portal_refreshrate", "1", false, false,
+	"How many frames to skip before rendering the next portal", 1)
+local gp2_portal_draw_ghosting = CreateClientConVar("gp2_portal_draw_ghosting", "1", true, false,
+	"Toggles the outline visible on portals through walls")
+
+local gradientMat = Material("vgui/gradient-r")
 
 local renderViewTable = {
 	x = 0,
@@ -39,9 +54,9 @@ local renderViewTable = {
 
 -- sort the portals by distance since draw functions do not obey the z buffer
 timer.Create("seamless_portal_distance_fix", 0.25, 0, function()
-	if !PortalManager or PortalManager.PortalIndex < 1 then return end
+	if ! PortalManager or PortalManager.PortalIndex < 1 then return end
 	portals = ents.FindByClass("prop_portal")
-	table.sort(portals, function(a, b) 
+	table.sort(portals, function(a, b)
 		return a:GetPos():DistToSqr(EyePos()) < b:GetPos():DistToSqr(EyePos())
 	end)
 
@@ -76,15 +91,15 @@ hook.Add("RenderScene", "seamless_portal_draw", function(eyePos, eyeAngles, fov)
 	if skip != 0 then return end
 
 	PortalRendering.Rendering = true
-	local oldHalo = halo.Add	-- black clipping plane fix
+	local oldHalo = halo.Add -- black clipping plane fix
 	halo.Add = nofunc
 	local maxAm = --[[PortalRendering.ToggleMirror() and 1 or]] 0
 
 	local render = render
 	for k, v in ipairs(portals) do
 		if timesRendered >= PortalRendering.MaxRTs - maxAm then break end
-		if !v:IsValid() or !v:GetLinkedPartner():IsValid() then continue end
-		
+		if ! v:IsValid() or ! v:GetLinkedPartner():IsValid() then continue end
+
 		if timesRendered < PortalRendering.MaxRTs and PortalManager.ShouldRender(v, eyePos, eyeAngles, gp2_portal_drawdistance:GetFloat()) then
 			local linkedPartner = v:GetLinkedPartner()
 			local editedPos, editedAng = PortalManager.TransformPortal(v, linkedPartner, eyePos, eyeAngles)
@@ -93,12 +108,8 @@ hook.Add("RenderScene", "seamless_portal_draw", function(eyePos, eyeAngles, fov)
 			renderViewTable.angles = editedAng
 			renderViewTable.fov = fov
 
-			//local pos1 = v:LocalToWorld(v:OBBMins()):ToScreen()
-			//local pos2 = v:LocalToWorld(v:OBBMaxs()):ToScreen()
-			//renderViewTable.x = v:LocalToWorld(Vector(-10, 0, 0)):ToScreen()
-
 			timesRendered = timesRendered + 1
-			v.PORTAL_RT_NUMBER = timesRendered	-- the number index of the rendertarget it will use in rendering
+			v.PORTAL_RT_NUMBER = timesRendered
 
 			-- render the scene
 			local up = linkedPartner:GetUp()
@@ -119,8 +130,8 @@ end)
 
 -- draw the player in renderview
 hook.Add("ShouldDrawLocalPlayer", "seamless_portal_drawplayer", function()
-	if PortalRendering.Rendering and !PortalRendering.DrawPlayerInView then 
-		return true 
+	if PortalRendering.Rendering and ! PortalRendering.DrawPlayerInView then
+		return true
 	end
 end)
 
@@ -150,11 +161,10 @@ local function drawsky(pos, ang, size, size_2, color, materials)
 end
 
 hook.Add("PostDrawTranslucentRenderables", "seamless_portal_skybox", function()
-	//render.DrawWireframeBox(Vector(), Angle(), Vector(1, 1, 1) * -2^14, Vector(1, 1, 1) * 2^14, Color(0, 0, 255, 255))
-	if !PortalRendering.Rendering or util.IsSkyboxVisibleFromPoint(renderViewTable.origin) then return end
+	if ! PortalRendering.Rendering or util.IsSkyboxVisibleFromPoint(renderViewTable.origin) then return end
 	render.OverrideDepthEnable(true, false)
 	drawsky(renderViewTable.origin, angle_zero, skysize, -skysize * 2, color_white, sky_materials)
-	render.OverrideDepthEnable(false , false)
+	render.OverrideDepthEnable(false, false)
 end)
 
 function PortalRendering.GetDrawDistance()
@@ -163,4 +173,43 @@ end
 
 function PortalRendering.GetShowGhosting()
 	return gp2_portal_draw_ghosting:GetBool()
+end
+
+function PortalRendering.ValidateAndSetRingRT(portal, material)
+	local color = portal:GetColorVector()
+	local colorHash = "" .. color.x .. color.y .. color.z
+
+	-- Build up gradient texture
+	-- and precache it
+	if not PortalRendering.RingRTs[colorHash] or not PortalRendering.RingMaterials[colorHash] then
+		PortalRendering.RingRTs[colorHash] = GetRenderTargetEx("_rt_portal_tinted_ring_" .. colorHash, 
+		256, 1, RT_SIZE_DEFAULT, MATERIAL_RT_DEPTH_NONE, 4 + 8 + 256 + 512, CREATERENDERTARGETFLAGS_HDR, IMAGE_FORMAT_BGR888)
+
+		-- Draw gradient texture
+		-- dark -> bright
+		render.PushRenderTarget(PortalRendering.RingRTs[colorHash])
+			render.Clear( 0, 0, 0, 255 )
+
+			cam.Start2D()
+				surface.SetDrawColor(0, 0, 0, 255)
+				surface.DrawRect(0,0,0,255)
+
+				surface.SetDrawColor(color.x, color.y, color.z, 255)
+				surface.SetMaterial(gradientMat)
+				surface.DrawTexturedRect(0, 0, 256, 1)
+			cam.End2D()
+		render.PopRenderTarget()
+
+		PortalRendering.RingMaterials[colorHash] = CreateMaterial("portalstaticoverlay" .. colorHash, "PortalRefract", {
+			["$Stage"] = "2",
+			["$PortalOpenAmount"] = "0.0",
+			["$PortalStatic"] = "0.0",
+			["$PortalMaskTexture"] = "models/portals/noise-blur-256x256",
+			["$PortalColorTexture"] = PortalRendering.RingRTs[colorHash]:GetName(),
+			["$PortalColorScale"] = "1.0",
+			["$time"] = "0.0"
+		})
+	end
+
+	return PortalRendering.RingMaterials[colorHash]
 end

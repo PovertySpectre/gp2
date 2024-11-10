@@ -555,7 +555,7 @@ function ENT:ThinkActive()
         end
 
         -- Fire the gun
-        if /*self:IsEnemyBehindGlass() or */ canShoot then
+        if --[[self:IsEnemyBehindGlass() or--]] canShoot then
             local dot3d = dirToEnemy:Dot(ownDir)
 
             if not self:GetHasAmmo() then
@@ -603,7 +603,7 @@ function ENT:ThinkSupress()
         return
     end
 
-    // Get our shot positions
+    -- Get our shot positions
     local mid = self:EyePos()
     local enemyMid = self.LastKnownPosition
 end
@@ -832,7 +832,7 @@ function ENT:Shoot(vecSrc, strict)
         IgnoreEntity = self
     }
 
-    // if modelIndex == 3 do something
+    -- if modelIndex == 3 do something
 
     bullet.Force = not self:GetDamageForce() and 0 or TURRET_FLOOR_BULLET_FORCE_MULTIPLIER
 

@@ -44,12 +44,9 @@ function EFFECT:Init(data)
       p:SetCollide(true)
     end
   end
-  
-  self.Emitter:Finish()
 end
 
 function EFFECT:Think()
-  return
 end
 
 function EFFECT:Render()

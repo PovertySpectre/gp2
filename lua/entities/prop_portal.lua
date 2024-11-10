@@ -17,9 +17,11 @@ function ENT:SetupDataTables()
 	self:NetworkVar("Int", "LinkageGroup")
 	self:NetworkVar("Float", "OpenTime")
 	self:NetworkVar("Float", "StaticTime")
+	self:NetworkVar("Vector", "ColorVectorInternal")
 
 	if SERVER then
 		self:SetSize(Vector(PORTAL_HEIGHT / 2, PORTAL_WIDTH / 2, 7))
+		self:SetColorVectorInternal(Vector(255,255,255))
 	end
 
 	self:NetworkVarNotify("Activated", self.OnActivated)
@@ -44,8 +46,10 @@ function ENT:GetSize()
 end
 
 local outputs = {
-	["OnTeleportFrom"] = true,
-	["OnTeleportTo"]   = true
+	["OnEntityTeleportFromMe"] = true,
+	["OnEntityTeleportToMe"] = true,
+	["OnPlayerTeleportFromMe"] = true,
+	["OnPlayerTeleportToMe"] = true,
 }
 
 if SERVER then
@@ -114,7 +118,7 @@ function ENT:Initialize()
 		local angles = self:GetAngles() + Angle(90, 0, 0)
 		angles:RotateAroundAxis(angles:Up(), 180)
 
-		
+		self:SetColor()
 		self:SetAngles(angles)
 		self:PhysicsInit(SOLID_VPHYSICS)
 		self:SetMoveType(MOVETYPE_NONE)
@@ -127,6 +131,7 @@ function ENT:Initialize()
 		PortalManager.PortalIndex = PortalManager.PortalIndex + 1
 	end
 	
+	-- Override portal in LinkageGroup
 	PortalManager.SetPortal(self:GetLinkageGroup(), self)
 	PortalManager.UpdateTraceline()
 end
@@ -136,33 +141,39 @@ function ENT:OnRemove()
 	if SERVER and self.PORTAL_REMOVE_EXIT then
 		SafeRemoveEntity(self:GetLinkedPartner())
 	end
+	
+	if CLIENT and IsValid(self.RingParticle) then
+		self.RingParticle:StopEmissionAndDestroyImmediately()
+	end
 
 	PortalManager.UpdateTraceline()
 end
 
 if CLIENT then
-	local drawMat = Material("models/dav0r/hoverball")
 	local stencilHole = Material("models/portals/portal_stencil_hole")
-	local dummyBlue = CreateMaterial("portalringdummy-blue", "UnlitGeneric", {
-		["$basetexture"] = "models/portals/dummy-blue",
+	local ghostTexture = CreateMaterial("portal-ghosting", "UnlitGeneric", {
+		["$basetexture"] = "models/portals/dummy-gray",
 		["$nocull"] = 1,
-		--["$model"] = 1,
+		["$model"] = 1,
+		["$alpha"] = 0.25,
 		["$translucent"] = 1,
 		["$vertexalpha"] = 1,
 		["$vertexcolor"] = 1,
 	})
-	local dummyOrange = CreateMaterial("portalringdummy-orange", "UnlitGeneric", {
-		["$basetexture"] = "models/portals/dummy-orange",
-		["$nocull"] = 1,
-		--["$model"] = 1,
-		["$translucent"] = 1,
-		["$vertexalpha"] = 1,
-		["$vertexcolor"] = 1,
-	})
-	local PORTAL_OVERLAYS = {
-		Material("models/portals/portalstaticoverlay_1"),
-		Material("models/portals/portalstaticoverlay_2"),
-	}
+
+	net.Receive(GP2.Net.SendPortalClose, function()
+		local pos = net.ReadVector()
+		local angle = net.ReadAngle()
+		local color = net.ReadVector()
+
+		local forward, right, up = angle:Forward(), angle:Right(), angle:Up()
+	
+		local particle = CreateParticleSystemNoEntity("portal_close", pos, angle)
+		particle:SetControlPoint(0, pos)
+		particle:SetControlPointOrientation(0, right, forward, up)
+		particle:SetControlPoint(2, color)
+	end)
+	
 
 	local function getRenderMesh()
 		if not PortalRendering.PortalMeshes[4] then
@@ -208,6 +219,10 @@ if CLIENT then
 	function ENT:Draw()
 		if not self:GetActivated() then return end
 
+		if not self.RENDER_MATRIX then
+			self.RENDER_MATRIX = Matrix()
+		end
+
 		debugoverlay.Text(self:GetPos(), self:GetLinkageGroup(), 0.1)
 
 		if halo.RenderedEntity() == self then return end
@@ -221,37 +236,38 @@ if CLIENT then
 			self.RENDER_MATRIX:SetAngles(self:GetAngles())
 			self.RENDER_MATRIX:SetScale(size * 0.999)
 			
-			if self.RENDER_MATRIX_LOCAL then
-				self.RENDER_MATRIX_LOCAL:Identity()
-			else
-				self.RENDER_MATRIX_LOCAL = Matrix()
-			end
-			self.RENDER_MATRIX_LOCAL:SetScale(size)
-			
 			self:SetRenderBounds(-size, size)
 
 			size[3] = 0
 		end
 
+		-- Try to build gradient texture for current color
+		-- to override color - without shaders :( 
+		local portalOverlay = PortalRendering.ValidateAndSetRingRT(self)
+
 		-- No PortalOpenAmount proxy
 		-- because it uses mesh rather entity's model
-		local portalType = self:GetType() + 1
 		stencilHole:SetFloat("$portalopenamount", self:GetOpenAmount())
-		PORTAL_OVERLAYS[portalType]:SetFloat("$portalopenamount", self:GetOpenAmount())
-		PORTAL_OVERLAYS[portalType]:SetFloat("$portalcolorscale", 1)
+		portalOverlay:SetFloat("$portalopenamount", self:GetOpenAmount())
+		portalOverlay:SetFloat("$time", CurTime())
 		
-		if IsValid(self:GetLinkedPartner()) then
-			PORTAL_OVERLAYS[portalType]:SetFloat("$portalstatic", self:GetStaticAmount())
+		if not PortalRendering.Rendering and IsValid(self:GetLinkedPartner()) then
+			portalOverlay:SetFloat("$portalstatic", self:GetStaticAmount())
 		else
-			PORTAL_OVERLAYS[portalType]:SetFloat("$portalstatic", 1)
+			portalOverlay:SetFloat("$portalstatic", 1)
 		end
 
+		--
+		-- Render portal view:
+		--	- only when it's not inside portal view
+		--	- there's linked partner
+		--	- should render (in FOV, distance is less than threshold)
+		--
 		if not (PortalRendering.Rendering or not IsValid(self:GetLinkedPartner()) or not PortalManager.ShouldRender(self, EyePos(), EyeAngles(), PortalRendering.GetDrawDistance())) then
-			-- do cursed stencil stuff
 			render.ClearStencil()
 			render.SetStencilEnable(true)
-			render.SetStencilWriteMask(1)
-			render.SetStencilTestMask(1)
+			render.SetStencilWriteMask(255)
+			render.SetStencilTestMask(255)
 			render.SetStencilReferenceValue(1)
 			render.SetStencilFailOperation(STENCIL_KEEP)
 			render.SetStencilZFailOperation(STENCIL_KEEP)
@@ -272,18 +288,34 @@ if CLIENT then
 			render.SetStencilEnable(false)
 		end
 
-		-- Render portal border
-		render.SetMaterial(PORTAL_OVERLAYS[portalType])
+		--
+		-- Render border material
+		-- previously I set open/static values for it
+		-- Each material is local to entity
+		--
+		render.SetMaterial(portalOverlay)
 		cam.PushModelMatrix(self.RENDER_MATRIX)
 			renderMesh:Draw()
 		cam.PopModelMatrix()
+		
+		-- 
+		-- Render the ring particle only not in portal view
+		-- after everything
+		--
+		if not PortalRendering.Rendering and IsValid(self.RingParticle) then
+			self.RingParticle:Render()
+		end
 	end
 
 	function ENT:DrawGhost()
 		local renderMesh, renderMesh2 = getRenderMesh()
 		local portalType = self:GetType()
 
-		-- Render portal ghost
+		--
+		-- Render portal ghosting
+		-- Uses stencils too
+		-- rendered from render.lua in PostDrawOpaqueRenderables
+		--
 		if not PortalRendering.Rendering and PortalRendering.GetShowGhosting() then
 			render.SetStencilWriteMask( 255 )
 			render.SetStencilTestMask( 255 )
@@ -292,7 +324,7 @@ if CLIENT then
 			render.SetStencilPassOperation( STENCIL_KEEP )
 			render.SetStencilFailOperation( STENCIL_KEEP )
 			render.SetStencilZFailOperation( STENCIL_KEEP )
-			render.ClearStencil() -- Set the Stencil Value to 0 for all pixels
+			render.ClearStencil()
 
 			render.SetStencilEnable( true )
 
@@ -310,13 +342,14 @@ if CLIENT then
 
 			render.SetStencilCompareFunction(STENCIL_EQUAL)
 
-			render.SetMaterial(portalType == PORTAL_TYPE_ORANGE and dummyOrange or dummyBlue)
+			render.SetMaterial(ghostTexture)
 			cam.IgnoreZ(true)
 			cam.PushModelMatrix(self.RENDER_MATRIX)
 				renderMesh:Draw()
 				renderMesh2:Draw()
 			cam.PopModelMatrix() 
 			cam.IgnoreZ(false)
+			render.SetBlend(1)
 
 			render.SetStencilEnable(false)
 		end		
@@ -325,45 +358,50 @@ if CLIENT then
 	-- hacky bullet fix
 	if game.SinglePlayer() then
 		function ENT:TestCollision(startpos, delta, isbox, extents, mask)
-			if bit.band(mask, CONTENTS_GRATE) != 0 then return true end
+			if bit.band(mask, CONTENTS_GRATE) ~= 0 then return true end
 		end
 	end
 end
 
 function ENT:UpdatePhysmesh()
-	if true then return end
+    self:PhysicsInit(SOLID_VPHYSICS)
+    local phys = self:GetPhysicsObject()
 
-	self:PhysicsInit(6)
-	if self:GetPhysicsObject():IsValid() then
-		local finalMesh = {}
-		local size = self:GetSize()
-		local sides = 4
-		local angleMul = 360 / sides
-		local degreeOffset = (sides * 90 + (sides % 4 != 0 and 0 or 45)) * (math.pi / 180)
-		for side = 1, sides do
-			local sidea = math.rad(side * angleMul) + degreeOffset
-			local sidex = math.sin(sidea)
-			local sidey = math.cos(sidea)
-			local side1 = Vector(sidex, sidey, -1)
-			local side2 = Vector(sidex, sidey,  0)
-			table.insert(finalMesh, side1 * size)
-			table.insert(finalMesh, side2 * size)
-		end
-		self:PhysicsInitConvex(finalMesh)
-		self:EnableCustomCollisions(true)
-		self:GetPhysicsObject():EnableMotion(false)
-		self:GetPhysicsObject():SetMaterial("glass")
-		self:GetPhysicsObject():SetMass(250)
-		self:GetPhysicsObject():SetContents(bit.bor(CONTENTS_SOLID, CONTENTS_MONSTER))
-	else
-		self:PhysicsDestroy()
-		self:EnableCustomCollisions(false)
-		--print("Failure to create a portal physics mesh " .. self:EntIndex())
-	end
-end
+    if IsValid(phys) then
+        local size = self:GetSize() * 0.75
+        local finalMesh = {
+            -- Bottom face (z = -size.z)
+            Vector(-size.x, -size.y, -size.z), -- Bottom Back Left
+            Vector(size.x, -size.y, -size.z),  -- Bottom Back Right
+            Vector(size.x, size.y, -size.z),   -- Bottom Front Right
+            Vector(-size.x, size.y, -size.z),  -- Bottom Front Left
 
-function ENT:UpdateTransmitState()
-	return TRANSMIT_PVS
+            -- Top face (z = size.z)
+            Vector(-size.x, -size.y, size.z), -- Top Back Left
+            Vector(size.x, -size.y, size.z),  -- Top Back Right
+            Vector(size.x, size.y, size.z),   -- Top Front Right
+            Vector(-size.x, size.y, size.z),  -- Top Front Left
+        }
+
+        self:PhysicsInitConvex(finalMesh)
+        self:EnableCustomCollisions(true)
+
+        phys = self:GetPhysicsObject()
+        if IsValid(phys) then
+            phys:EnableMotion(false)
+            phys:SetMaterial("glass")
+            phys:SetMass(250)
+            phys:SetContents(bit.bor(CONTENTS_SOLID, CONTENTS_MONSTER, CONTENTS_WINDOW))
+        else
+            self:PhysicsDestroy()
+            self:EnableCustomCollisions(false)
+            print("Failure to create a valid physics object for portal " .. self:EntIndex())
+        end
+    else
+        self:PhysicsDestroy()
+        self:EnableCustomCollisions(false)
+        print("Failure to initialize physics for portal " .. self:EntIndex())
+    end
 end
 
 function ENT:OnPhysgunPickup(ply, ent)
@@ -390,7 +428,6 @@ function ENT:GetStaticAmount()
 	return 1 - progress
 end
 
--- set physmesh pos on client
 if CLIENT then
 	-- this code creates the rendertargets to be used for the portals
 	for i = 1, PortalRendering.MaxRTs do
@@ -406,6 +443,24 @@ if CLIENT then
 
 	function ENT:Think()
 		PropPortal.AddToRenderList(self)
+
+		if not IsValid(self.RingParticle) then
+			-- they're lagging
+			self.RingParticle = CreateParticleSystem(self, self:GetType() == PORTAL_TYPE_SECOND and "portal_edge_reverse" or "portal_edge", PATTACH_CUSTOMORIGIN)
+			self.RingParticle:StartEmission()
+			self.RingParticle:SetShouldDraw(false)
+		else
+			self.RingParticle:SetControlPoint(0, self:GetPos() - self:GetAngles():Up() * 7)
+
+			-- Messed up axes in Seamless Portals
+			-- right is forward
+			-- forward is right
+			-- up is same
+			local angles = self:GetAngles()
+			local fwd, right, up = angles:Forward(), angles:Right(), angles:Up()
+			self.RingParticle:SetControlPointOrientation(0, right, fwd, up)
+			self.RingParticle:SetControlPoint(7, self:GetColorVector())
+		end
 
 		local phys = self:GetPhysicsObject()
 		if phys:IsValid() then
@@ -428,23 +483,37 @@ if CLIENT then
 	end)
 end
 
+function ENT:Fizzle()
+	net.Start(GP2.Net.SendPortalClose)
+		net.WriteVector(self:GetPos())
+		net.WriteAngle(self:GetAngles())
+		net.WriteVector(self:GetColorVector())
+	net.Broadcast()
+
+	EmitSound(self:GetType() == PORTAL_TYPE_SECOND and "Portal.close_red" or "Portal.close_blue", self:GetPos())
+
+	self:Remove()
+end
+
 function ENT:OnActivated(name, old, new)
 	if SERVER then
 		self:SetOpenTime(CurTime())
+		
+		if new then
+			self:EmitSound(self:GetType() == PORTAL_TYPE_SECOND and "Portal.open_red" or "Portal.open_blue")
+		end
 	end
 	
+	-- Override portal in LinkageGroup after activation change
 	PortalManager.SetPortal(self:GetLinkageGroup(), self)
-	print('PropPortal::OnActivated')
 end
 
 function ENT:SetLinkedPartner(partner)
 	if partner:GetClass() ~= self:GetClass() then
-		GP2.Print("partner:GetClass() ~= self:GetClass()")
 		return
 	end
 
 	if not partner:GetActivated() then 
-		GP2.Print("not partner:GetActivated()")
 		return 
 	end
 	
@@ -458,4 +527,16 @@ end
 
 function ENT:GetLinkedPartner()
 	return self:GetLinkedPartnerInternal()
+end
+
+function ENT:GetColorVector()
+	return self:GetColorVectorInternal()
+end
+
+--- Sets portal color (vector and color version)
+---@param r number: red component
+---@param g number: green component
+---@param b number: blue component
+function ENT:SetPortalColor(r, g, b)
+	self:SetColorVectorInternal(Vector(r, g, b))
 end

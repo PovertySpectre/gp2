@@ -1,5 +1,8 @@
--- this is the code that teleports entities like props
--- it only works for things with physics since I dont want to add support to other wacked entities that dont have physics
+-- ----------------------------------------------------------------------------
+-- GP2 Framework
+-- Portal teleport for props
+-- Original code: Mee
+-- ----------------------------------------------------------------------------
 
 local allEnts
 timer.Create("portals_ent_update", 0.25, 0, function()
@@ -31,9 +34,9 @@ timer.Create("portals_ent_update", 0.25, 0, function()
     end
 end)
 
-// stolen from infinite map
+-- stolen from infinite map
 local function unfucked_setpos(constrainedProp, editedPos, editedPropAng, editedVel)
-    // source engine cancels velocity for some reason
+    -- source engine cancels velocity for some reason
     local phys = constrainedProp:GetPhysicsObject()
     if phys:IsValid() then
         phys:SetPos(editedPos, true)

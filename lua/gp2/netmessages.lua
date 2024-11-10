@@ -20,6 +20,9 @@ AddNetworkMessage "SendDeferredParticleSystem"
 AddNetworkMessage "SendLoadedToServer"
 AddNetworkMessage "SendPaintSurfaces"
 AddNetworkMessage "SendHudText"
+AddNetworkMessage "SendPortalPlacementNotPortalable"
+AddNetworkMessage "SendPortalPlacementSuccess"
+AddNetworkMessage "SendPortalClose"
 
 if SERVER then
     for net in pairs(GP2.Net) do

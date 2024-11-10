@@ -439,6 +439,7 @@ hook.Add("PreDrawTranslucentRenderables", "GP2::PreDrawTranslucentRenderables", 
     VguiMovieDisplay.Render()
     VguiSPProgressSign.Render()
     VguiNeurotoxinCountdown.Render()
+    PropPortal.Render()
 end)
 
 
@@ -453,5 +454,4 @@ hook.Add("PostDrawTranslucentRenderables", "GP2::PostDrawTranslucentRenderables"
 end)
 
 hook.Add("PostDrawOpaqueRenderables", "GP2::PostDrawOpaqueRenderables", function(depth, sky, skybox3d)
-    PropPortal.Render()
 end)
