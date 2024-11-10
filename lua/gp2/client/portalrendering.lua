@@ -188,6 +188,7 @@ function PortalRendering.ValidateAndSetRingRT(portal, material)
 		-- Draw gradient texture
 		-- dark -> bright
 		render.PushRenderTarget(PortalRendering.RingRTs[colorHash])
+			render.SetGoalToneMappingScale(4)
 			render.Clear( 0, 0, 0, 255 )
 
 			cam.Start2D()

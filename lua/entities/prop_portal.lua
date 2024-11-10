@@ -19,6 +19,7 @@ function ENT:SetupDataTables()
 	self:NetworkVar("Float", "OpenTime")
 	self:NetworkVar("Float", "StaticTime")
 	self:NetworkVar("Vector", "ColorVectorInternal")
+	self:NetworkVar("Vector", "ColorVector01Internal")
 
 	if SERVER then
 		self:SetSize(Vector(PORTAL_HEIGHT / 2, PORTAL_WIDTH / 2, 7))
@@ -344,6 +345,8 @@ if CLIENT then
 
 			render.SetStencilCompareFunction(STENCIL_EQUAL)
 
+			ghostTexture:SetVector("$color", self:GetColorVector01Internal())
+
 			render.SetMaterial(ghostTexture)
 			cam.IgnoreZ(true)
 			cam.PushModelMatrix(self.RENDER_MATRIX)
@@ -541,4 +544,5 @@ end
 ---@param b number: blue component
 function ENT:SetPortalColor(r, g, b)
 	self:SetColorVectorInternal(Vector(r, g, b))
+	self:SetColorVector01Internal(Vector(r / 255, g / 255, b / 255))
 end
