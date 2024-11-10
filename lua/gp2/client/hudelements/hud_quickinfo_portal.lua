@@ -120,16 +120,30 @@ function PANEL:Paint(w, h)
     r1, g1, b1 = desaturateAndBrighten(r1, g1, b1)
     r2, g2, b2 = desaturateAndBrighten(r2, g2, b2)
 
-    if IsValid(placed1) then
-        drawCrosshairPart(3, w / 2 - 29, h / 2 - 44, r1, g1, b1, 255)
-    else
-        drawCrosshairPart(1, w / 2 - 31, h / 2 - 44, r1, g1, b1, 196)
-    end
+    if can1 or can2 then
+        if not can2 then
+            r2 = r1
+            g2 = g1
+            b2 = b1
+        end
 
-    if IsValid(placed2) then
-        drawCrosshairPart(4, w / 2 - 17, h / 2 - 22, r2, g2, b2, 255)
-    else
-        drawCrosshairPart(2, w / 2 - 18, h / 2 - 22, r2, g2, b2, 196)
+        if not can1 then
+            r1 = r2
+            g1 = g2
+            b1 = b2
+        end
+
+        if IsValid(placed1) then
+            drawCrosshairPart(3, w / 2 - 29, h / 2 - 44, r1, g1, b1, 255)
+        else
+            drawCrosshairPart(1, w / 2 - 31, h / 2 - 44, r1, g1, b1, 196)
+        end
+    
+        if IsValid(placed2) then
+            drawCrosshairPart(4, w / 2 - 17, h / 2 - 22, r2, g2, b2, 255)
+        else
+            drawCrosshairPart(2, w / 2 - 18, h / 2 - 22, r2, g2, b2, 196)
+        end
     end
 
     surface_SetDrawColor(255,255,255,255)
